@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import IORedis from 'ioredis';
 import { Queue, Worker } from 'bullmq';
 
-export const COLA_VENCIMIENTOS = 'radicados:vencimientos';
+export const COLA_VENCIMIENTOS = 'radicados-vencimientos';
 
 /**
  * Establece la conexión con Redis y registra los procesadores de las colas.
