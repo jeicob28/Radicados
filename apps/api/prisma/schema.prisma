@@ -1,0 +1,650 @@
+// SGDEA — esquema núcleo (Fase 0)
+// Marco: Acuerdo 001 de 2024 (AGN).
+// Series/subseries, TRD, expedientes y transferencias se agregan en fases posteriores.
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────── enums ───────────────────────────
+
+enum TipoConsecutivo {
+  ENT
+  SAL
+  UNICO
+}
+
+enum EstadoRadicado {
+  RECIBIDO
+  RADICADO
+  CLASIFICADO
+  ASIGNADO
+  EN_TRAMITE
+  RESPONDIDO
+  CERRADO
+  REABIERTO
+  ANULADO
+}
+
+enum CanalRecepcion {
+  PRESENCIAL
+  CORREO
+  WEB
+  FORMULARIO
+  SISTEMA
+  TELEFONO
+  FISICO
+}
+
+enum TipoComunicacion {
+  GENERAL
+  DERECHO_PETICION
+  PETICION_INFORMACION
+  PETICION_DOCUMENTOS
+  CONSULTA
+  QUEJA
+  RECLAMO
+  SOLICITUD
+  FELICITACION
+  SUGERENCIA
+  OTRO
+}
+
+enum TipoEventoTramite {
+  RADICADO
+  CLASIFICADO
+  ASIGNADO
+  RECIBIDO
+  EN_TRAMITE
+  TRASLADADO
+  REASIGNADO
+  RESPUESTA_GENERADA
+  CERRADO
+  ANULADO
+  REABIERTO
+  NOTA
+}
+
+enum AccionBitacora {
+  CREAR
+  LEER
+  ACTUALIZAR
+  ANULAR
+  ASIGNAR
+  REASIGNAR
+  TRASLADAR
+  CAMBIAR_ESTADO
+  DESCARGAR
+  EXPORTAR
+  LOGIN
+  LOGOUT
+}
+
+enum OrigenRadicado {
+  SISTEMA
+  CONTINGENCIA
+  MIGRACION
+}
+
+enum NivelAlerta {
+  NA
+  VERDE
+  AMARILLO
+  ROJO
+  VENCIDO
+}
+
+// ─────────────────────────── catálogos ───────────────────────────
+
+model Parametro {
+  clave       String   @id
+  valor       Json
+  descripcion String?
+  actualizado DateTime @default(now()) @updatedAt
+
+  @@map("parametro")
+}
+
+model Festivo {
+  fecha       DateTime @id @db.Date
+  descripcion String
+
+  @@map("festivo")
+}
+
+model Dependencia {
+  id        String        @id @default(uuid())
+  codigo    String        @unique
+  nombre    String
+  parentId  String?       @map("parent_id")
+  parent    Dependencia?  @relation("DepJerarquia", fields: [parentId], references: [id])
+  hijos     Dependencia[] @relation("DepJerarquia")
+  activa    Boolean       @default(true)
+  creada    DateTime      @default(now())
+
+  usuarios       Usuario[]
+  radicados      Radicado[]
+  series         Serie[]
+  expedientes    Expediente[]
+  transferencias Transferencia[]
+
+  @@map("dependencia")
+}
+
+model Usuario {
+  id                  String       @id @default(uuid())
+  documento           String       @unique
+  nombre              String
+  email               String       @unique
+  passwordHash        String?      @map("password_hash")
+  activo              Boolean      @default(true)
+  roles               String[]     @default([])
+  dependenciaId       String?      @map("dependencia_id")
+  dependencia         Dependencia? @relation(fields: [dependenciaId], references: [id])
+  ultimoAcceso        DateTime?    @map("ultimo_acceso")
+  debeCambiarPassword Boolean      @default(false) @map("debe_cambiar_password")
+  mfaSecret           String?      @map("mfa_secret")
+  mfaHabilitado       Boolean      @default(false) @map("mfa_habilitado")
+  creado              DateTime     @default(now())
+
+  radicados            Radicado[]
+  eventos              EventoTramite[]
+  anulaciones          Anulacion[]
+  refreshTokens        RefreshToken[]
+  notificaciones       Notificacion[]
+  expedientesCreados   Expediente[]
+  documentosIncorporados DocumentoExpediente[]
+  correosProcesados    ComunicacionCorreo[]
+
+  @@map("usuario")
+}
+
+// ─────────────────────────── ciclo de vida: transferencias y disposición final ───────────────────────────
+
+enum TipoTransferencia {
+  PRIMARIA
+  SECUNDARIA
+}
+
+enum EstadoTransferencia {
+  BORRADOR
+  ENVIADA
+  RECIBIDA
+  RECHAZADA
+}
+
+enum EstadoAprobacion {
+  PENDIENTE
+  APROBADA_PARCIAL
+  APROBADA
+  RECHAZADA
+  EJECUTADA
+}
+
+model Transferencia {
+  id                  String              @id @default(uuid())
+  numero              String              @unique
+  tipo                TipoTransferencia
+  estado              EstadoTransferencia @default(BORRADOR)
+  dependenciaOrigenId String              @map("dependencia_origen_id")
+  dependenciaOrigen   Dependencia         @relation(fields: [dependenciaOrigenId], references: [id])
+  fechaElaboracion    DateTime            @default(now()) @map("fecha_elaboracion")
+  fechaEnvio          DateTime?           @map("fecha_envio")
+  fechaRecepcion      DateTime?           @map("fecha_recepcion")
+  elaboradoPorId      String?             @map("elaborado_por_id")
+  recibidoPorId       String?             @map("recibido_por_id")
+  actaObjectKey       String?             @map("acta_object_key")
+  observaciones       String?
+  creado              DateTime            @default(now())
+
+  items TransferenciaItem[]
+
+  @@index([estado])
+  @@map("transferencia")
+}
+
+model TransferenciaItem {
+  id               String        @id @default(uuid())
+  transferenciaId  String        @map("transferencia_id")
+  transferencia    Transferencia @relation(fields: [transferenciaId], references: [id])
+  expedienteId     String        @map("expediente_id")
+  expediente       Expediente    @relation(fields: [expedienteId], references: [id])
+  numeroExpediente String        @map("numero_expediente")
+  titulo           String
+  serie            String?
+  fechaInicio      DateTime?     @map("fecha_inicio") @db.Date
+  fechaFin         DateTime?     @map("fecha_fin") @db.Date
+  folios           Int           @default(0)
+
+  @@unique([transferenciaId, expedienteId])
+  @@map("transferencia_item")
+}
+
+model DisposicionFinalActa {
+  id              String           @id @default(uuid())
+  numero          String           @unique
+  disposicion     DisposicionFinal
+  estado          EstadoAprobacion @default(PENDIENTE)
+  justificacion   String
+  normativa       String?
+  solicitadoPorId String?          @map("solicitado_por_id")
+  solicitado      DateTime         @default(now())
+  aprobacion1PorId String?         @map("aprobacion1_por_id")
+  aprobacion1En   DateTime?        @map("aprobacion1_en")
+  aprobacion2PorId String?         @map("aprobacion2_por_id")
+  aprobacion2En   DateTime?        @map("aprobacion2_en")
+  ejecutadoEn     DateTime?        @map("ejecutado_en")
+  actaObjectKey   String?          @map("acta_object_key")
+  creado          DateTime         @default(now())
+
+  items DisposicionFinalItem[]
+
+  @@map("disposicion_final")
+}
+
+model DisposicionFinalItem {
+  id               String               @id @default(uuid())
+  disposicionId    String               @map("disposicion_id")
+  disposicion      DisposicionFinalActa @relation(fields: [disposicionId], references: [id])
+  expedienteId     String               @map("expediente_id")
+  expediente       Expediente           @relation(fields: [expedienteId], references: [id])
+  numeroExpediente String               @map("numero_expediente")
+  titulo           String
+
+  @@unique([disposicionId, expedienteId])
+  @@map("disposicion_final_item")
+}
+
+model Notificacion {
+  id             String    @id @default(uuid())
+  usuarioId      String    @map("usuario_id")
+  usuario        Usuario   @relation(fields: [usuarioId], references: [id])
+  tipo           String
+  titulo         String
+  cuerpo         String?
+  radicadoNumero String?   @map("radicado_numero")
+  leidaEn        DateTime? @map("leida_en")
+  creado         DateTime  @default(now())
+
+  @@index([usuarioId, leidaEn])
+  @@map("notificacion")
+}
+
+enum EstadoCorreo {
+  PENDIENTE
+  RADICADO
+  DESCARTADO
+}
+
+model ComunicacionCorreo {
+  id                String       @id @default(uuid())
+  messageId         String       @unique @map("message_id")
+  de                String
+  para              String[]     @default([])
+  cc                String[]     @default([])
+  asunto            String
+  cuerpoTexto       String?      @map("cuerpo_texto")
+  cuerpoHtml        String?      @map("cuerpo_html")
+  fecha             DateTime
+  objectKeyOriginal String?      @map("object_key_original")
+  adjuntos          Json         @default("[]")
+  estado            EstadoCorreo @default(PENDIENTE)
+  radicadoNumero    String?      @map("radicado_numero")
+  motivoDescarte    String?      @map("motivo_descarte")
+  procesadoPorId    String?      @map("procesado_por_id")
+  procesadoPor      Usuario?     @relation(fields: [procesadoPorId], references: [id])
+  procesado         DateTime?
+  creado            DateTime     @default(now())
+
+  @@index([estado])
+  @@map("comunicacion_correo")
+}
+
+model Rol {
+  id          String   @id @default(uuid())
+  codigo      String   @unique
+  nombre      String
+  descripcion String?
+  permisos    String[] @default([])
+  sistema     Boolean  @default(false)
+  creado      DateTime @default(now())
+  actualizado DateTime @default(now()) @updatedAt
+
+  @@map("rol")
+}
+
+model RefreshToken {
+  id         String    @id @default(uuid())
+  usuarioId  String    @map("usuario_id")
+  usuario    Usuario   @relation(fields: [usuarioId], references: [id])
+  tokenHash  String    @unique @map("token_hash")
+  expiraEn   DateTime  @map("expira_en")
+  revocadoEn DateTime? @map("revocado_en")
+  userAgent  String?   @map("user_agent")
+  ip         String?
+  creado     DateTime  @default(now())
+
+  @@index([usuarioId])
+  @@map("refresh_token")
+}
+
+model Tercero {
+  id                  String   @id @default(uuid())
+  tipoPersona         String   @map("tipo_persona")
+  tipoDocumento       String   @map("tipo_documento")
+  numeroDocumento     String   @map("numero_documento")
+  nombre              String
+  email               String?
+  telefono            String?
+  direccion           String?
+  ciudad              String?
+  autorizaTratamiento Boolean  @default(false) @map("autoriza_tratamiento")
+  creado              DateTime @default(now())
+
+  radicados Radicado[]
+
+  @@unique([tipoDocumento, numeroDocumento])
+  @@map("tercero")
+}
+
+// ─────────────────────────── consecutivo ───────────────────────────
+
+model Consecutivo {
+  id                     String          @id @default(uuid())
+  vigencia               Int
+  tipo                   TipoConsecutivo
+  ultimoNumero           Int             @default(0) @map("ultimo_numero")
+  formato                String          @default("{vigencia}-{tipo}-{numero:06}")
+  rangoContingenciaDesde Int?            @map("rango_contingencia_desde")
+  rangoContingenciaHasta Int?            @map("rango_contingencia_hasta")
+  ultimoContingencia     Int?            @map("ultimo_contingencia")
+  creado                 DateTime        @default(now())
+
+  radicados Radicado[]
+
+  @@unique([vigencia, tipo])
+  @@map("consecutivo")
+}
+
+// ─────────────────────────── radicado (append-only) ───────────────────────────
+
+model Radicado {
+  id                  String           @id @default(uuid())
+  numero              String           @unique
+  vigencia            Int
+  tipo                TipoConsecutivo
+  consecutivoId       String           @map("consecutivo_id")
+  consecutivo         Consecutivo      @relation(fields: [consecutivoId], references: [id])
+  secuencial          Int
+  origen              OrigenRadicado   @default(SISTEMA)
+  canal               CanalRecepcion
+  fechaHoraRadicacion DateTime         @default(now()) @map("fecha_hora_radicacion")
+  terceroId           String?          @map("tercero_id")
+  tercero             Tercero?         @relation(fields: [terceroId], references: [id])
+  destinatario        String?
+  dependenciaId       String?          @map("dependencia_id")
+  dependencia         Dependencia?     @relation(fields: [dependenciaId], references: [id])
+  funcionarioId       String?          @map("funcionario_id")
+  funcionario         Usuario?         @relation(fields: [funcionarioId], references: [id])
+  asunto              String
+  tipoComunicacion    TipoComunicacion @default(GENERAL) @map("tipo_comunicacion")
+  medioRespuesta      String?          @map("medio_respuesta")
+  estado              EstadoRadicado   @default(RADICADO)
+  folios              Int              @default(0)
+  fechaVencimiento    DateTime?        @map("fecha_vencimiento") @db.Date
+  fechaAsignacion     DateTime?        @map("fecha_asignacion")
+  fechaPrimeraRespuesta DateTime?      @map("fecha_primera_respuesta")
+  fechaCierre         DateTime?        @map("fecha_cierre")
+  nivelAlerta         NivelAlerta      @default(NA) @map("nivel_alerta")
+  diasHabilesRestantes Int?            @map("dias_habiles_restantes")
+  radicadoRespuestaId String?          @map("radicado_respuesta_id")
+  serieId             String?          @map("serie_id")
+  serie               Serie?           @relation(fields: [serieId], references: [id])
+  subserieId          String?          @map("subserie_id")
+  subserie            Subserie?        @relation(fields: [subserieId], references: [id])
+  expedienteId        String?          @map("expediente_id")
+  expediente          Expediente?      @relation(fields: [expedienteId], references: [id])
+  hashRegistro        String           @map("hash_registro")
+  hashAnterior        String?          @map("hash_anterior")
+  creado              DateTime         @default(now())
+
+  eventos             EventoTramite[]
+  anexos              Anexo[]
+  anulacion           Anulacion?
+  documentosExpediente DocumentoExpediente[]
+
+  @@unique([consecutivoId, secuencial])
+  @@index([vigencia, tipo])
+  @@index([estado])
+  @@index([fechaVencimiento])
+  @@index([nivelAlerta])
+  @@index([funcionarioId])
+  @@map("radicado")
+}
+
+model EventoTramite {
+  id             String            @id @default(uuid())
+  radicadoId     String            @map("radicado_id")
+  radicado       Radicado          @relation(fields: [radicadoId], references: [id])
+  secuencia      Int
+  tipoEvento     TipoEventoTramite @map("tipo_evento")
+  estadoAnterior EstadoRadicado?   @map("estado_anterior")
+  estadoNuevo    EstadoRadicado?   @map("estado_nuevo")
+  actorId        String?           @map("actor_id")
+  actor          Usuario?          @relation(fields: [actorId], references: [id])
+  ip             String?
+  observacion    String?
+  datos          Json?
+  fechaHora      DateTime          @default(now()) @map("fecha_hora")
+
+  @@unique([radicadoId, secuencia])
+  @@index([radicadoId])
+  @@map("evento_tramite")
+}
+
+model Anulacion {
+  id            String   @id @default(uuid())
+  radicadoId    String   @unique @map("radicado_id")
+  radicado      Radicado @relation(fields: [radicadoId], references: [id])
+  usuarioId     String?  @map("usuario_id")
+  usuario       Usuario? @relation(fields: [usuarioId], references: [id])
+  motivo        String
+  justificacion String
+  fecha         DateTime @default(now())
+
+  @@map("anulacion")
+}
+
+model Anexo {
+  id             String   @id @default(uuid())
+  radicadoId     String   @map("radicado_id")
+  radicado       Radicado @relation(fields: [radicadoId], references: [id])
+  nombre         String
+  descripcion    String?
+  objectKey      String   @map("object_key")
+  contentType    String?  @map("content_type")
+  tamanoBytes    Int?     @map("tamano_bytes")
+  checksumSha256 String?  @map("checksum_sha256")
+  paginas        Int?
+  creado         DateTime @default(now())
+
+  documentosExpediente DocumentoExpediente[]
+
+  @@index([radicadoId])
+  @@map("anexo")
+}
+
+// ─────────────────────────── clasificación archivística / TRD ───────────────────────────
+
+enum DisposicionFinal {
+  CONSERVACION_TOTAL
+  ELIMINACION
+  SELECCION
+  MICROFILMACION_DIGITALIZACION
+}
+
+enum EstadoExpediente {
+  ABIERTO
+  CERRADO
+  TRANSFERIDO_CENTRAL
+  TRANSFERIDO_HISTORICO
+  ELIMINADO
+  CONSERVADO
+}
+
+enum TipoItemExpediente {
+  RADICADO
+  ANEXO
+  DOCUMENTO_SIMPLE
+}
+
+model Secuencia {
+  clave  String @id
+  ultimo Int    @default(0)
+
+  @@map("secuencia")
+}
+
+model Serie {
+  id                      String           @id @default(uuid())
+  codigo                  String
+  nombre                  String
+  dependenciaId           String           @map("dependencia_id")
+  dependencia             Dependencia      @relation(fields: [dependenciaId], references: [id])
+  retencionArchivoGestion Int              @default(0) @map("retencion_archivo_gestion")
+  retencionArchivoCentral Int              @default(0) @map("retencion_archivo_central")
+  disposicionFinal        DisposicionFinal @default(CONSERVACION_TOTAL) @map("disposicion_final")
+  procedimiento           String?
+  activa                  Boolean          @default(true)
+  creado                  DateTime         @default(now())
+
+  subseries       Subserie[]
+  tiposDocumentales TipoDocumental[]
+  expedientes     Expediente[]
+  radicados       Radicado[]
+
+  @@unique([dependenciaId, codigo])
+  @@map("serie")
+}
+
+model Subserie {
+  id                      String            @id @default(uuid())
+  codigo                  String
+  nombre                  String
+  serieId                 String            @map("serie_id")
+  serie                   Serie             @relation(fields: [serieId], references: [id])
+  retencionArchivoGestion Int?              @map("retencion_archivo_gestion")
+  retencionArchivoCentral Int?              @map("retencion_archivo_central")
+  disposicionFinal        DisposicionFinal? @map("disposicion_final")
+  activa                  Boolean           @default(true)
+
+  tiposDocumentales TipoDocumental[]
+  expedientes       Expediente[]
+  radicados         Radicado[]
+
+  @@unique([serieId, codigo])
+  @@map("subserie")
+}
+
+model TipoDocumental {
+  id         String    @id @default(uuid())
+  codigo     String    @unique
+  nombre     String
+  serieId    String?   @map("serie_id")
+  serie      Serie?    @relation(fields: [serieId], references: [id])
+  subserieId String?   @map("subserie_id")
+  subserie   Subserie? @relation(fields: [subserieId], references: [id])
+
+  @@map("tipo_documental")
+}
+
+model Expediente {
+  id                        String           @id @default(uuid())
+  numero                    String           @unique
+  titulo                    String
+  serieId                   String           @map("serie_id")
+  serie                     Serie            @relation(fields: [serieId], references: [id])
+  subserieId                String?          @map("subserie_id")
+  subserie                  Subserie?        @relation(fields: [subserieId], references: [id])
+  dependenciaId             String           @map("dependencia_id")
+  dependencia               Dependencia      @relation(fields: [dependenciaId], references: [id])
+  estado                    EstadoExpediente @default(ABIERTO)
+  fechaApertura             DateTime         @default(now()) @map("fecha_apertura")
+  fechaCierre               DateTime?        @map("fecha_cierre")
+  fechaInicioExtrema        DateTime?        @map("fecha_inicio_extrema") @db.Date
+  fechaFinExtrema           DateTime?        @map("fecha_fin_extrema") @db.Date
+  fechaLimiteArchivoGestion DateTime?        @map("fecha_limite_archivo_gestion") @db.Date
+  fechaLimiteArchivoCentral DateTime?        @map("fecha_limite_archivo_central") @db.Date
+  disposicionFinal          DisposicionFinal? @map("disposicion_final")
+  totalFolios               Int              @default(0) @map("total_folios")
+  ubicacionFisica           String?          @map("ubicacion_fisica")
+  creadoPorId               String?          @map("creado_por_id")
+  creadoPor                 Usuario?         @relation(fields: [creadoPorId], references: [id])
+  creado                    DateTime         @default(now())
+
+  documentos           DocumentoExpediente[]
+  radicados            Radicado[]
+  transferenciaItems   TransferenciaItem[]
+  disposicionItems     DisposicionFinalItem[]
+
+  @@index([serieId])
+  @@index([dependenciaId])
+  @@index([estado])
+  @@map("expediente")
+}
+
+model DocumentoExpediente {
+  id               String             @id @default(uuid())
+  expedienteId     String             @map("expediente_id")
+  expediente       Expediente         @relation(fields: [expedienteId], references: [id])
+  orden            Int
+  tipo             TipoItemExpediente
+  titulo           String
+  fecha            DateTime?
+  folioInicio      Int?               @map("folio_inicio")
+  folioFin         Int?               @map("folio_fin")
+  radicadoId       String?            @map("radicado_id")
+  radicado         Radicado?          @relation(fields: [radicadoId], references: [id])
+  anexoId          String?            @map("anexo_id")
+  anexo            Anexo?             @relation(fields: [anexoId], references: [id])
+  objectKey        String?            @map("object_key")
+  contentType      String?            @map("content_type")
+  tamanoBytes      Int?               @map("tamano_bytes")
+  checksumSha256   String?            @map("checksum_sha256")
+  incorporadoPorId String?            @map("incorporado_por_id")
+  incorporadoPor   Usuario?           @relation(fields: [incorporadoPorId], references: [id])
+  incorporado      DateTime           @default(now())
+
+  @@unique([expedienteId, orden])
+  @@index([expedienteId])
+  @@map("documento_expediente")
+}
+
+// ─────────────────────────── bitácora (append-only, hash encadenado) ───────────────────────────
+
+model Bitacora {
+  id            BigInt         @id @default(autoincrement())
+  fechaHora     DateTime       @default(now()) @map("fecha_hora")
+  usuarioId     String?        @map("usuario_id")
+  usuarioNombre String?        @map("usuario_nombre")
+  ip            String?
+  userAgent     String?        @map("user_agent")
+  entidad       String
+  entidadId     String?        @map("entidad_id")
+  accion        AccionBitacora
+  antes         Json?
+  despues       Json?
+  observacion   String?
+  hashAnterior  String?        @map("hash_anterior")
+  hash          String
+
+  @@index([entidad, entidadId])
+  @@index([fechaHora])
+  @@map("bitacora")
+}

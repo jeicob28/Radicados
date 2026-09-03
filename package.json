@@ -1,0 +1,16 @@
+{
+  "name": "radicados-sgdea",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sistema de Radicación y Gestión Documental (SGDEA) — Acuerdo 001 de 2024 (AGN)",
+  "scripts": {
+    "up": "docker compose --env-file .env up --build",
+    "up:dev": "docker compose --env-file .env -f compose.yml -f compose.dev.yml up --build",
+    "up:prod": "docker compose --env-file .env -f compose.yml -f compose.prod.yml up --build -d",
+    "down": "docker compose down",
+    "down:volumes": "docker compose down -v",
+    "logs": "docker compose logs -f",
+    "seed": "docker compose exec api npm run seed",
+    "psql": "docker compose exec postgres psql -U radicados -d radicados"
+  }
+}

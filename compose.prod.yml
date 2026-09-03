@@ -1,0 +1,36 @@
+# Overlay de producción.
+# Uso:  docker compose -f compose.yml -f compose.prod.yml up -d --build
+#   ó:  npm run up:prod
+#
+# Antes de usar en un entorno real:
+#  - Definir secretos fuertes en .env (JWT_*, contraseñas).
+#  - Terminar TLS en el proxy o delante de él.
+#  - Configurar copias de seguridad de los volúmenes pgdata / miniodata.
+
+services:
+  postgres:
+    restart: always
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+
+  redis:
+    restart: always
+
+  minio:
+    restart: always
+
+  api:
+    restart: always
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+
+  worker:
+    restart: always
+
+  web:
+    restart: always
+
+  proxy:
+    restart: always

@@ -1,0 +1,166 @@
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+import { BitacoraService } from '../bitacora/bitacora.service';
+import { generarPasswordTemporal, hashPassword } from '../common/passwords';
+import type { AuditCtx } from '../auth/decorators';
+import { ActualizarUsuarioDto, CrearUsuarioDto } from './dto';
+
+const SELECT = {
+  id: true,
+  documento: true,
+  nombre: true,
+  email: true,
+  roles: true,
+  activo: true,
+  dependenciaId: true,
+  ultimoAcceso: true,
+  debeCambiarPassword: true,
+  creado: true,
+} satisfies Prisma.UsuarioSelect;
+
+@Injectable()
+export class UsuariosService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly bitacora: BitacoraService,
+  ) {}
+
+  async listar(q?: string, activo?: boolean) {
+    const where: Prisma.UsuarioWhereInput = {};
+    if (activo !== undefined) where.activo = activo;
+    if (q) {
+      where.OR = [
+        { nombre: { contains: q, mode: 'insensitive' } },
+        { email: { contains: q, mode: 'insensitive' } },
+        { documento: { contains: q } },
+      ];
+    }
+    return this.prisma.usuario.findMany({ where, select: SELECT, orderBy: { nombre: 'asc' } });
+  }
+
+  async obtener(id: string) {
+    const u = await this.prisma.usuario.findUnique({ where: { id }, select: SELECT });
+    if (!u) throw new NotFoundException('Usuario no encontrado');
+    return u;
+  }
+
+  private async validarRoles(roles: string[]) {
+    const existentes = await this.prisma.rol.findMany({
+      where: { codigo: { in: roles } },
+      select: { codigo: true },
+    });
+    const set = new Set(existentes.map((r) => r.codigo));
+    const faltan = roles.filter((r) => !set.has(r));
+    if (faltan.length) {
+      throw new BadRequestException(`Roles inexistentes: ${faltan.join(', ')}`);
+    }
+  }
+
+  async crear(dto: CrearUsuarioDto, ctx: AuditCtx) {
+    await this.validarRoles(dto.roles);
+    if (dto.dependenciaId) {
+      const dep = await this.prisma.dependencia.findUnique({ where: { id: dto.dependenciaId } });
+      if (!dep) throw new BadRequestException('Dependencia inexistente');
+    }
+
+    const passwordTemporal = dto.password ?? generarPasswordTemporal();
+    let creado;
+    try {
+      creado = await this.prisma.usuario.create({
+        data: {
+          documento: dto.documento,
+          nombre: dto.nombre,
+          email: dto.email,
+          roles: dto.roles,
+          dependenciaId: dto.dependenciaId ?? null,
+          passwordHash: await hashPassword(passwordTemporal),
+          debeCambiarPassword: true,
+        },
+        select: SELECT,
+      });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+        throw new ConflictException('Ya existe un usuario con ese documento o correo');
+      }
+      throw e;
+    }
+
+    await this.bitacora.registrar({
+      ctx,
+      entidad: 'usuario',
+      entidadId: creado.id,
+      accion: 'CREAR',
+      despues: { documento: creado.documento, email: creado.email, roles: creado.roles },
+    });
+
+    return { usuario: creado, passwordTemporal: dto.password ? undefined : passwordTemporal };
+  }
+
+  async actualizar(id: string, dto: ActualizarUsuarioDto, ctx: AuditCtx) {
+    const antes = await this.obtener(id);
+    if (dto.roles) await this.validarRoles(dto.roles);
+
+    const data: Prisma.UsuarioUpdateInput = {};
+    if (dto.nombre !== undefined) data.nombre = dto.nombre;
+    if (dto.email !== undefined) data.email = dto.email;
+    if (dto.roles !== undefined) data.roles = dto.roles;
+    if (dto.activo !== undefined) data.activo = dto.activo;
+    if (dto.dependenciaId !== undefined) {
+      data.dependencia = dto.dependenciaId
+        ? { connect: { id: dto.dependenciaId } }
+        : { disconnect: true };
+    }
+
+    const actualizado = await this.prisma.usuario.update({ where: { id }, data, select: SELECT });
+
+    if (dto.activo === false) {
+      await this.prisma.refreshToken.updateMany({
+        where: { usuarioId: id, revocadoEn: null },
+        data: { revocadoEn: new Date() },
+      });
+    }
+
+    await this.bitacora.registrar({
+      ctx,
+      entidad: 'usuario',
+      entidadId: id,
+      accion: 'ACTUALIZAR',
+      antes: { nombre: antes.nombre, email: antes.email, roles: antes.roles, activo: antes.activo },
+      despues: {
+        nombre: actualizado.nombre,
+        email: actualizado.email,
+        roles: actualizado.roles,
+        activo: actualizado.activo,
+      },
+    });
+
+    return actualizado;
+  }
+
+  async resetPassword(id: string, ctx: AuditCtx) {
+    await this.obtener(id);
+    const passwordTemporal = generarPasswordTemporal();
+    await this.prisma.usuario.update({
+      where: { id },
+      data: { passwordHash: await hashPassword(passwordTemporal), debeCambiarPassword: true },
+    });
+    await this.prisma.refreshToken.updateMany({
+      where: { usuarioId: id, revocadoEn: null },
+      data: { revocadoEn: new Date() },
+    });
+    await this.bitacora.registrar({
+      ctx,
+      entidad: 'usuario',
+      entidadId: id,
+      accion: 'ACTUALIZAR',
+      observacion: 'Restablecimiento de contraseña por administrador',
+    });
+    return { passwordTemporal };
+  }
+}

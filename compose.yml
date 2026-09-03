@@ -1,0 +1,137 @@
+name: radicados
+
+# Punto de entrada: http://localhost:${HTTP_PORT:-8080}
+# Servicios de datos (postgres/redis/minio) NO se publican en el host por defecto.
+# Para desarrollo con puertos expuestos y hot-reload:  compose.dev.yml
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-radicados}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-radicados_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-radicados}
+      TZ: ${TZ:-America/Bogota}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-radicados} -d ${POSTGRES_DB:-radicados}"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin_dev}
+    volumes:
+      - miniodata:/data
+    restart: unless-stopped
+
+  createbuckets:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin_dev}; do
+        echo 'esperando a MinIO...'; sleep 2;
+      done;
+      mc mb --ignore-existing local/${MINIO_BUCKET:-radicados};
+      mc version enable local/${MINIO_BUCKET:-radicados} || true;
+      echo 'bucket listo'; exit 0;
+      "
+    restart: "no"
+
+  api:
+    build:
+      context: ./apps/api
+    environment:
+      NODE_ENV: production
+      API_PORT: ${API_PORT:-3000}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-radicados}:${POSTGRES_PASSWORD:-radicados_dev}@postgres:5432/${POSTGRES_DB:-radicados}?schema=public
+      REDIS_URL: redis://redis:6379
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: "9000"
+      MINIO_USE_SSL: "false"
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin_dev}
+      MINIO_BUCKET: ${MINIO_BUCKET:-radicados}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev_access_secret_change_me}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev_refresh_secret_change_me}
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:-dev_internal_token_change_me}
+      TZ: ${TZ:-America/Bogota}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/v1/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ./apps/worker
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-radicados}:${POSTGRES_PASSWORD:-radicados_dev}@postgres:5432/${POSTGRES_DB:-radicados}?schema=public
+      REDIS_URL: redis://redis:6379
+      API_INTERNAL_URL: http://api:3000/api/v1
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:-dev_internal_token_change_me}
+      IMAP_HOST: ${IMAP_HOST:-}
+      IMAP_PORT: ${IMAP_PORT:-993}
+      IMAP_SECURE: ${IMAP_SECURE:-true}
+      IMAP_USER: ${IMAP_USER:-}
+      IMAP_PASSWORD: ${IMAP_PASSWORD:-}
+      TZ: ${TZ:-America/Bogota}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./apps/web
+    restart: unless-stopped
+
+  proxy:
+    build:
+      context: ./infra/nginx
+    environment:
+      API_UPSTREAM: api:3000
+      WEB_UPSTREAM: web:80
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    depends_on:
+      - api
+      - web
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:
