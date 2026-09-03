@@ -75,6 +75,8 @@ services:
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev_access_secret_change_me}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev_refresh_secret_change_me}
       INTERNAL_TOKEN: ${INTERNAL_TOKEN:-dev_internal_token_change_me}
+      AUDIT_EXPORT_SECRET: ${AUDIT_EXPORT_SECRET:-dev_audit_secret_change_me}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-Admin2026*Cambiar}
       TZ: ${TZ:-America/Bogota}
     depends_on:
       postgres:

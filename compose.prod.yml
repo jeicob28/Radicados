@@ -3,34 +3,41 @@
 #   ó:  npm run up:prod
 #
 # Antes de usar en un entorno real:
-#  - Definir secretos fuertes en .env (JWT_*, contraseñas).
+#  - Definir secretos fuertes en .env (JWT_*, INTERNAL_TOKEN, AUDIT_EXPORT_SECRET, contraseñas).
 #  - Terminar TLS en el proxy o delante de él.
-#  - Configurar copias de seguridad de los volúmenes pgdata / miniodata.
+#  - Configurar copias de seguridad de los volúmenes pgdata / miniodata (ver infra/backup).
 
 services:
   postgres:
     restart: always
+    mem_limit: 768m
     logging:
       driver: json-file
       options: { max-size: "10m", max-file: "5" }
 
   redis:
     restart: always
+    mem_limit: 192m
 
   minio:
     restart: always
+    mem_limit: 512m
 
   api:
     restart: always
+    mem_limit: 640m
     logging:
       driver: json-file
       options: { max-size: "10m", max-file: "5" }
 
   worker:
     restart: always
+    mem_limit: 320m
 
   web:
     restart: always
+    mem_limit: 64m
 
   proxy:
     restart: always
+    mem_limit: 64m
