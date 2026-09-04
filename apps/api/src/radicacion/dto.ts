@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsDateString,
   IsEnum,
   IsInt,
   IsOptional,
@@ -91,6 +92,21 @@ export class RadicarDto {
   @IsOptional()
   @IsString()
   enRespuestaA?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Fecha y hora real de llegada del documento físico, si difiere de la fecha de radicación (recepción con rezago)',
+  })
+  @IsOptional()
+  @IsDateString()
+  fechaRecepcion?: string;
+
+  @ApiPropertyOptional({
+    description: 'Nombre de quien entrega físicamente el documento (mensajero, no siempre es el remitente)',
+  })
+  @IsOptional()
+  @IsString()
+  entregadoPor?: string;
 
   @ApiPropertyOptional({ type: [AdjuntoRefDto] })
   @IsOptional()

@@ -41,6 +41,35 @@ mouse simulados, radicación con **2 anexos reales** (`captura-*.jpg` 9 KB,
 `firma-recepcion.png` 5.8 KB, con su descripción) verificados vía API tras el
 envío; e incorporación de la misma foto/firma al índice del expediente.
 
+## Adenda (2026-09-04) — Fecha de llegada y "entregado por"
+
+A petición del usuario, faltaban en el radicado dos datos propios de la
+recepción física, junto a la firma (Requerimientos §20.3):
+
+- Migración `20260909000000_recepcion_fisica`: columnas nuevas y opcionales
+  en `radicado` — `fecha_recepcion` (timestamp) y `entregado_por` (texto).
+  No son de identidad: `fn_radicado_inmutable` no las protege por columna,
+  pero como todo `radicado`, se fijan una sola vez al crear y no hay ningún
+  `UPDATE` que las toque después — append-only en la práctica igual que el
+  resto de la fila. No entran en el cálculo de `hashRegistro` (no cambia el
+  formato del hash encadenado existente).
+- `RadicarDto` acepta `fechaRecepcion` (ISO, opcional) y `entregadoPor`
+  (texto, opcional); `RadicacionService.radicar` los persiste tal cual.
+- `Radicar.tsx`: el bloque de recepción física (fecha de llegada + entregado
+  por + firma) ahora se muestra para **entrada** con canal `PRESENCIAL` **o
+  `FISICO`** (antes la firma solo aparecía en `PRESENCIAL`).
+- `RadicadoDetalle.tsx`: nuevas filas "Llegada del documento" y "Entregado
+  por" en la tarjeta *Datos* (solo si el radicado los trae), y una tarjeta
+  "Firma de quien entrega el documento" con vista previa `<img>` de la firma
+  (se resuelve por descarga autenticada del anexo `firma-recepcion.png` a un
+  blob URL — helper `blobUrl` en `api.ts` — no por URL pública de MinIO).
+
+Verificado: build de API (`tsc --noEmit`) y de `web` (`vite build`) limpios,
+suite Jest de la API en verde, migración aplicada en el stack de Docker
+Compose local, y creación de un radicado vía API con `fechaRecepcion` y
+`entregadoPor` confirmando que ambos quedan guardados y se devuelven en
+`GET /radicados/:numero`.
+
 ## Verificado (stack en contenedores)
 
 ```

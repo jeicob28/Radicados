@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { api, download } from '../api';
+import { api, blobUrl, download } from '../api';
 import { useAuth } from '../auth';
 import { Alerta, Boton, Card, EstadoPill, ErrorMsg, Modal, fechaCorta, fechaHora, useAsync } from '../ui';
+
+const NOMBRE_FIRMA = 'firma-recepcion.png';
 
 interface Evento {
   secuencia: number;
@@ -17,6 +19,7 @@ interface Evento {
 interface Anexo {
   id: string;
   nombre: string;
+  descripcion: string | null;
   tamanoBytes: number | null;
   checksumSha256: string | null;
 }
@@ -32,6 +35,8 @@ interface Radicado {
   nivelAlerta: string;
   diasHabilesRestantes: number | null;
   fechaHoraRadicacion: string;
+  fechaRecepcion: string | null;
+  entregadoPor: string | null;
   fechaVencimiento: string | null;
   destinatario: string | null;
   medioRespuesta: string | null;
@@ -70,6 +75,7 @@ export default function RadicadoDetalle() {
   if (!data) return null;
 
   const r = data;
+  const firma = r.anexos.find((a) => a.nombre === NOMBRE_FIRMA);
   const acciones: { id: AccionId; label: string; ok: boolean }[] = [
     { id: 'asignar', label: 'Asignar', ok: tieneRol('JEFE', 'VENTANILLA', 'RADICADOR') && ['RADICADO', 'CLASIFICADO', 'REABIERTO'].includes(r.estado) },
     { id: 'clasificar', label: 'Clasificar', ok: tieneRol('ARCHIVISTA', 'VENTANILLA') && !r.expediente && r.estado !== 'ANULADO' },
@@ -107,6 +113,8 @@ export default function RadicadoDetalle() {
           <dl className="kv">
             <dt>Asunto</dt><dd>{r.asunto}</dd>
             <dt>Radicación</dt><dd>{fechaHora(r.fechaHoraRadicacion)} · {r.canal}</dd>
+            {r.fechaRecepcion && <><dt>Llegada del documento</dt><dd>{fechaHora(r.fechaRecepcion)}</dd></>}
+            {r.entregadoPor && <><dt>Entregado por</dt><dd>{r.entregadoPor}</dd></>}
             <dt>Vence</dt><dd>{fechaCorta(r.fechaVencimiento)} {r.diasHabilesRestantes != null && `(${r.diasHabilesRestantes} días háb.)`}</dd>
             <dt>{r.tipo === 'SAL' ? 'Destinatario' : 'Remitente'}</dt>
             <dd>{r.tercero ? `${r.tercero.nombre} · ${r.tercero.numeroDocumento}` : r.destinatario ?? '—'}</dd>
@@ -140,6 +148,12 @@ export default function RadicadoDetalle() {
             ))}
           </ul>
         </Card>
+
+        {firma && (
+          <Card title="Firma de quien entrega el documento">
+            <FirmaPreview numero={r.numero} anexoId={firma.id} />
+          </Card>
+        )}
       </div>
 
       <Card title="Trazabilidad">
@@ -309,4 +323,29 @@ function AccionModal({
       </div>
     </Modal>
   );
+}
+
+function FirmaPreview({ numero, anexoId }: { numero: string; anexoId: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let objectUrl: string | null = null;
+    let cancelado = false;
+    blobUrl(`/radicados/${numero}/adjuntos/${anexoId}/descarga`)
+      .then((u) => {
+        if (cancelado) return URL.revokeObjectURL(u);
+        objectUrl = u;
+        setUrl(u);
+      })
+      .catch(() => setError(true));
+    return () => {
+      cancelado = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [numero, anexoId]);
+
+  if (error) return <p className="vacio">No se pudo cargar la firma.</p>;
+  if (!url) return <p className="vacio">Cargando…</p>;
+  return <img src={url} alt="Firma de recepción" className="firma-preview" />;
 }

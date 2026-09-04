@@ -66,6 +66,15 @@ export async function download(path: string, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+/** Como `download`, pero para mostrar el archivo inline (p. ej. una firma en un <img>)
+ * en vez de forzar la descarga. Quien la llama debe revocar la URL cuando ya no la use. */
+export async function blobUrl(path: string): Promise<string> {
+  const res = await raw(path);
+  if (!res.ok) throw new ApiError(res.status, 'No se pudo cargar el archivo');
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
+
 async function tryRefresh(): Promise<boolean> {
   try {
     const res = await fetch(BASE + '/auth/refresh', { method: 'POST', credentials: 'include' });

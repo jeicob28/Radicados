@@ -844,9 +844,9 @@ cubre el caso del móvil sin condiciones adicionales.
 
 ## 20.2 Firma en la recepción
 
-Cuando la comunicación se recibe de forma **presencial**, el sistema
-ofrece un campo para capturar la firma de quien hace entrega del
-documento, como constancia de la recepción:
+Cuando la comunicación se recibe de forma **física** (canal presencial o
+por mensajería/físico), el sistema ofrece un campo para capturar la firma
+de quien hace entrega del documento, como constancia de la recepción:
 
   -----------------------------------------------------------------------
   Funcionalidad                       Requerimiento
@@ -860,11 +860,44 @@ documento, como constancia de la recepción:
                                        puede o no desea firmar en el
                                        equipo
 
-  Solo cuando aplica                  El campo solo se ofrece cuando el
-                                       canal de recepción es presencial
+  Solo cuando aplica                  El campo solo se ofrece en
+                                       radicados de entrada cuyo canal de
+                                       recepción es presencial o físico
 
   Conservación                        La firma queda conservada como
                                        evidencia asociada al radicado, con
                                        el mismo control de integridad que
-                                       los demás anexos
+                                       los demás anexos, y se muestra en
+                                       el detalle del radicado
   -----------------------------------------------------------------------
+
+## 20.3 Fecha de llegada y quién entrega el documento
+
+Junto con la firma, y para el mismo caso (radicado de entrada, canal
+presencial o físico), el formulario de radicación captura dos datos
+adicionales de la recepción, propios de la ventanilla física:
+
+  -----------------------------------------------------------------------
+  Campo                                Requerimiento
+  ------------------------------------ ----------------------------------
+  Fecha y hora de llegada               Editable, con la fecha/hora actual
+                                         como valor por defecto; existe
+                                         para el caso en que el documento
+                                         llegó antes de que alguien
+                                         alcanzara a radicarlo (rezago de
+                                         digitación) y la fecha real de
+                                         llegada deba quedar registrada
+                                         aparte de la fecha de radicación
+
+  Entregado por                         Nombre de quien trae físicamente
+                                         el documento a la ventanilla; no
+                                         siempre coincide con el
+                                         remitente/tercero (p. ej. un
+                                         mensajero que entrega en nombre
+                                         de otra persona o entidad)
+  -----------------------------------------------------------------------
+
+Ambos campos son opcionales y quedan fijados al momento de radicar —igual
+que el resto del radicado, no se pueden modificar después (regla
+append-only, capítulo 4)—, y se muestran en el detalle del radicado junto
+con la firma.

@@ -386,6 +386,8 @@ model Radicado {
   origen              OrigenRadicado   @default(SISTEMA)
   canal               CanalRecepcion
   fechaHoraRadicacion DateTime         @default(now()) @map("fecha_hora_radicacion")
+  fechaRecepcion      DateTime?        @map("fecha_recepcion")
+  entregadoPor        String?          @map("entregado_por")
   terceroId           String?          @map("tercero_id")
   tercero             Tercero?         @relation(fields: [terceroId], references: [id])
   destinatario        String?

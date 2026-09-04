@@ -238,3 +238,6 @@ hr.soft { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
 }
 .firma-linea { border-top: 1px dashed var(--border); margin: 0 14px; }
 .firma-acciones { display: flex; justify-content: space-between; align-items: center; padding: 6px 2px 0; font-size: 0.78rem; }
+.firma-preview {
+  max-width: 320px; width: 100%; background: #fff; border: 1px solid var(--border); border-radius: 8px;
+}

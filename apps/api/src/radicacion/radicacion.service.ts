@@ -111,6 +111,8 @@ export class RadicacionService {
                 origen: 'SISTEMA',
                 canal: dto.canal as never,
                 fechaHoraRadicacion: fechaHora,
+                fechaRecepcion: dto.fechaRecepcion ? new Date(dto.fechaRecepcion) : null,
+                entregadoPor: dto.entregadoPor ?? null,
                 terceroId: dto.terceroId ?? null,
                 destinatario: dto.destinatario ?? null,
                 dependenciaId: dto.dependenciaId ?? null,
@@ -196,6 +198,7 @@ export class RadicacionService {
             asunto: radicado.asunto,
             tipoComunicacion: radicado.tipoComunicacion,
             fechaVencimiento: radicado.fechaVencimiento,
+            entregadoPor: radicado.entregadoPor,
           },
         });
 

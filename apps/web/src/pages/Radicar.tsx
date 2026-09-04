@@ -52,6 +52,8 @@ export default function Radicar() {
     destinatario: '',
     folios: 0,
     enRespuestaA: '',
+    fechaRecepcion: '',
+    entregadoPor: '',
   });
   const [archivos, setArchivos] = useState<FileList | null>(null);
   const [capturas, setCapturas] = useState<File[]>([]);
@@ -97,6 +99,10 @@ export default function Radicar() {
       if (form.terceroId) payload.terceroId = form.terceroId;
       if (form.destinatario) payload.destinatario = form.destinatario;
       if (form.tipo === 'SAL' && form.enRespuestaA) payload.enRespuestaA = form.enRespuestaA;
+      if (esRecepcionFisica && form.fechaRecepcion) {
+        payload.fechaRecepcion = new Date(form.fechaRecepcion).toISOString();
+      }
+      if (esRecepcionFisica && form.entregadoPor.trim()) payload.entregadoPor = form.entregadoPor.trim();
 
       const r = await api<{ numero: string }>('/radicados', {
         method: 'POST',
@@ -111,6 +117,10 @@ export default function Radicar() {
   };
 
   const opcionesDep = deps.data ? flatten(deps.data) : [];
+  // Recepción física: llega un documento en papel a la ventanilla (en persona
+  // o por mensajería) — ahí sí tiene sentido preguntar cuándo llegó y quién
+  // lo entregó, y ofrecer la firma de quien lo entrega.
+  const esRecepcionFisica = form.tipo === 'ENT' && (form.canal === 'PRESENCIAL' || form.canal === 'FISICO');
 
   return (
     <div className="page narrow">
@@ -222,12 +232,24 @@ export default function Radicar() {
             )}
           </Field>
 
-          {form.canal === 'PRESENCIAL' && (
-            <div className="col-full">
-              <Field label="Firma de quien entrega el documento (opcional)">
-                <FirmaPad onChange={setFirma} />
+          {esRecepcionFisica && (
+            <>
+              <Field label="Fecha y hora de llegada" hint="Solo si difiere de ahora (recepción con rezago)">
+                <input
+                  type="datetime-local"
+                  value={form.fechaRecepcion}
+                  onChange={(e) => set('fechaRecepcion', e.target.value)}
+                />
               </Field>
-            </div>
+              <Field label="Entregado por" hint="Nombre de quien trae el documento (mensajero, si no es el remitente)">
+                <input value={form.entregadoPor} onChange={(e) => set('entregadoPor', e.target.value)} />
+              </Field>
+              <div className="col-full">
+                <Field label="Firma de quien entrega el documento (opcional)">
+                  <FirmaPad onChange={setFirma} />
+                </Field>
+              </div>
+            </>
           )}
 
           {error && (
