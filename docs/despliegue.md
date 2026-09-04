@@ -72,3 +72,6 @@ crontab -e
 | Migraciones | se aplican solas al arrancar `api` (`prisma migrate deploy`) |
 | Parar | `docker compose down` (conserva datos) |
 | Reset total | `docker compose down -v` (⚠ borra la base y los objetos) |
+
+El `proxy` (nginx) resuelve `api`/`web` en caliente cada 10 s (`resolver 127.0.0.11`), así
+que recrear esos contenedores en una actualización no requiere reiniciarlo aparte.
