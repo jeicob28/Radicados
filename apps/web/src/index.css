@@ -190,3 +190,26 @@ textarea { resize: vertical; }
 .integridad { font-size: 0.9rem; font-weight: 600; margin: 0; }
 .integridad.ok { color: var(--ok); }
 .integridad.bad { color: var(--crit); }
+hr.soft { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+/* ---------- admin: roles / nav section ---------- */
+.nav-sep {
+  font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted);
+  padding: 14px 10px 4px;
+}
+.rolchip {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem;
+  border: 1px solid var(--border); border-radius: 20px; padding: 5px 10px; cursor: pointer;
+  background: var(--surface);
+}
+.rolchip input { width: auto; }
+.rolchip.sel { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+
+/* ---------- admin: dependencias ---------- */
+.dep-arbol { display: flex; flex-direction: column; gap: 1px; }
+.dep-nodo {
+  text-align: left; background: none; border: none; padding: 7px 10px; border-radius: 6px;
+  font: inherit; font-size: 0.86rem; cursor: pointer; color: var(--text);
+}
+.dep-nodo:hover { background: var(--surface-2); }
+.dep-nodo.sel { background: var(--accent-soft); color: var(--accent); font-weight: 600; }

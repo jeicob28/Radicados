@@ -7,6 +7,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BitacoraService } from '../bitacora/bitacora.service';
+import { PasswordPolicyService } from '../common/password-policy.service';
 import { generarPasswordTemporal, hashPassword } from '../common/passwords';
 import type { AuditCtx } from '../auth/decorators';
 import { ActualizarUsuarioDto, CrearUsuarioDto } from './dto';
@@ -19,8 +20,10 @@ const SELECT = {
   roles: true,
   activo: true,
   dependenciaId: true,
+  dependencia: { select: { codigo: true, nombre: true } },
   ultimoAcceso: true,
   debeCambiarPassword: true,
+  mfaHabilitado: true,
   creado: true,
 } satisfies Prisma.UsuarioSelect;
 
@@ -29,11 +32,13 @@ export class UsuariosService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly bitacora: BitacoraService,
+    private readonly passwordPolicy: PasswordPolicyService,
   ) {}
 
-  async listar(q?: string, activo?: boolean) {
+  async listar(q?: string, activo?: boolean, dependenciaId?: string) {
     const where: Prisma.UsuarioWhereInput = {};
     if (activo !== undefined) where.activo = activo;
+    if (dependenciaId) where.dependenciaId = dependenciaId;
     if (q) {
       where.OR = [
         { nombre: { contains: q, mode: 'insensitive' } },
@@ -62,12 +67,20 @@ export class UsuariosService {
     }
   }
 
+  private async revocarSesiones(usuarioId: string) {
+    await this.prisma.refreshToken.updateMany({
+      where: { usuarioId, revocadoEn: null },
+      data: { revocadoEn: new Date() },
+    });
+  }
+
   async crear(dto: CrearUsuarioDto, ctx: AuditCtx) {
     await this.validarRoles(dto.roles);
     if (dto.dependenciaId) {
       const dep = await this.prisma.dependencia.findUnique({ where: { id: dto.dependenciaId } });
       if (!dep) throw new BadRequestException('Dependencia inexistente');
     }
+    if (dto.password) await this.passwordPolicy.validar(dto.password);
 
     const passwordTemporal = dto.password ?? generarPasswordTemporal();
     let creado;
@@ -81,6 +94,7 @@ export class UsuariosService {
           dependenciaId: dto.dependenciaId ?? null,
           passwordHash: await hashPassword(passwordTemporal),
           debeCambiarPassword: true,
+          passwordCambiadaEn: new Date(),
         },
         select: SELECT,
       });
@@ -105,6 +119,10 @@ export class UsuariosService {
   async actualizar(id: string, dto: ActualizarUsuarioDto, ctx: AuditCtx) {
     const antes = await this.obtener(id);
     if (dto.roles) await this.validarRoles(dto.roles);
+    if (dto.dependenciaId) {
+      const dep = await this.prisma.dependencia.findUnique({ where: { id: dto.dependenciaId } });
+      if (!dep) throw new BadRequestException('Dependencia inexistente');
+    }
 
     const data: Prisma.UsuarioUpdateInput = {};
     if (dto.nombre !== undefined) data.nombre = dto.nombre;
@@ -119,24 +137,26 @@ export class UsuariosService {
 
     const actualizado = await this.prisma.usuario.update({ where: { id }, data, select: SELECT });
 
-    if (dto.activo === false) {
-      await this.prisma.refreshToken.updateMany({
-        where: { usuarioId: id, revocadoEn: null },
-        data: { revocadoEn: new Date() },
-      });
-    }
+    if (dto.activo === false) await this.revocarSesiones(id);
 
     await this.bitacora.registrar({
       ctx,
       entidad: 'usuario',
       entidadId: id,
       accion: 'ACTUALIZAR',
-      antes: { nombre: antes.nombre, email: antes.email, roles: antes.roles, activo: antes.activo },
+      antes: {
+        nombre: antes.nombre,
+        email: antes.email,
+        roles: antes.roles,
+        activo: antes.activo,
+        dependenciaId: antes.dependenciaId,
+      },
       despues: {
         nombre: actualizado.nombre,
         email: actualizado.email,
         roles: actualizado.roles,
         activo: actualizado.activo,
+        dependenciaId: actualizado.dependenciaId,
       },
     });
 
@@ -148,19 +168,61 @@ export class UsuariosService {
     const passwordTemporal = generarPasswordTemporal();
     await this.prisma.usuario.update({
       where: { id },
-      data: { passwordHash: await hashPassword(passwordTemporal), debeCambiarPassword: true },
+      data: {
+        passwordHash: await hashPassword(passwordTemporal),
+        debeCambiarPassword: true,
+        passwordCambiadaEn: new Date(),
+      },
     });
-    await this.prisma.refreshToken.updateMany({
-      where: { usuarioId: id, revocadoEn: null },
-      data: { revocadoEn: new Date() },
-    });
+    await this.revocarSesiones(id);
     await this.bitacora.registrar({
       ctx,
       entidad: 'usuario',
       entidadId: id,
       accion: 'ACTUALIZAR',
-      observacion: 'Restablecimiento de contraseña por administrador',
+      observacion: 'Restablecimiento de contraseña por administrador (temporal)',
     });
     return { passwordTemporal };
+  }
+
+  /** El administrador fija una contraseña concreta (en vez de una temporal aleatoria). */
+  async establecerPassword(
+    id: string,
+    password: string,
+    forzarCambio: boolean,
+    ctx: AuditCtx,
+  ) {
+    await this.obtener(id);
+    await this.passwordPolicy.validar(password);
+    await this.prisma.usuario.update({
+      where: { id },
+      data: {
+        passwordHash: await hashPassword(password),
+        debeCambiarPassword: forzarCambio,
+        passwordCambiadaEn: new Date(),
+      },
+    });
+    await this.revocarSesiones(id);
+    await this.bitacora.registrar({
+      ctx,
+      entidad: 'usuario',
+      entidadId: id,
+      accion: 'ACTUALIZAR',
+      observacion: `Contraseña fijada por administrador${forzarCambio ? ' (con cambio obligatorio)' : ''}`,
+    });
+    return { ok: true };
+  }
+
+  async cerrarSesiones(id: string, ctx: AuditCtx) {
+    await this.obtener(id);
+    await this.revocarSesiones(id);
+    await this.bitacora.registrar({
+      ctx,
+      entidad: 'usuario',
+      entidadId: id,
+      accion: 'ACTUALIZAR',
+      observacion: 'Sesiones cerradas por administrador',
+    });
+    return { ok: true };
   }
 }

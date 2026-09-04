@@ -62,6 +62,53 @@ tablas `rol` y `refresh_token`, y las funciones de verificación de la bitácora
 `admin@empresa.local` / `Admin2026*Cambiar` (marca `debeCambiarPassword`).
 Sobrescribir con `SEED_ADMIN_PASSWORD` al ejecutar el seed.
 
+## Adenda (2026-09-04) — Módulo de usuarios y módulo de dependencias
+
+A petición del usuario, una vez construidas F0–F6, se reforzaron estos dos módulos con
+pantallas propias de administración y funciones de seguridad adicionales. Ver requisito
+formal en `Requerimientos_Sistema_Radicacion_Gestion_Documental_Colombia.md` §19.
+
+### API nueva
+
+| Endpoint | Rol | Qué hace |
+|---|---|---|
+| `POST /usuarios/:id/password` | ADMIN | Fija una contraseña específica; `forzarCambio` (bool) decide si exige cambio en el próximo ingreso |
+| `POST /usuarios/:id/cerrar-sesiones` | ADMIN | Revoca todos los refresh tokens activos del usuario |
+| `GET /usuarios?dependenciaId=` | ADMIN | Filtra el personal por dependencia (usado por los selectores de asignación) |
+| `GET /dependencias/:id` | autenticado | Detalle de una dependencia: superior, sub-dependencias, **personal asignado**, conteo de radicados/expedientes |
+
+### Política de contraseñas
+
+Parámetro `seguridad.password_policy` (`PasswordPolicyService`, cacheado 60s):
+`minLength`, `requireUpper`, `requireLower`, `requireNumber`, `requireSpecial`,
+`caducidadDias`. Se valida en creación de usuario, cambio propio y contraseña fijada por
+admin. Si `caducidadDias` está definido y se vence, el siguiente `login` marca
+`debeCambiarPassword=true` automáticamente (mismo mecanismo que el primer ingreso).
+
+### Frontend
+
+- `/admin/usuarios` — alta, edición de roles/dependencia/estado, restablecer (temporal),
+  fijar contraseña específica, cerrar sesiones.
+- `/admin/roles` — catálogo de roles y permisos (los roles de sistema no editan permisos).
+- `/admin/dependencias` — organigrama con panel de personal por dependencia; quitar
+  personal reutiliza `PATCH /usuarios/:id` (`dependenciaId: null`).
+- Pantalla de **cambio de contraseña obligatorio**: si `usuario.debeCambiarPassword`,
+  bloquea el resto de la aplicación hasta que se cambie.
+- Los modales de *asignar / trasladar / reasignar* de un radicado ahora listan el
+  **personal real de la dependencia elegida** en vez de pedir un ID a mano.
+
+### Verificado
+
+```
+✓ crear usuario con contraseña débil → 400 (política)
+✓ admin fija contraseña con forzarCambio=false → login inmediato, sin pantalla forzada
+✓ cerrar-sesiones revoca el refresh token
+✓ GET /dependencias/:id incluye el personal asignado
+✓ mover un usuario de dependencia lo retira de la anterior
+✓ pantalla de cambio forzado bloquea la navegación hasta cambiar la contraseña
+✓ modal de asignación lista el personal real de la dependencia seleccionada
+```
+
 ## Siguiente: Fase 2 — Núcleo de radicación
 
 Ventanilla única (presencial + web), transacción del consecutivo (`fn_asignar_consecutivo`

@@ -10,6 +10,7 @@ import {
 import { AuthProvider, useAuth } from './auth';
 import { api } from './api';
 import Login from './pages/Login';
+import CambiarPasswordForzado from './pages/CambiarPasswordForzado';
 import Dashboard from './pages/Dashboard';
 import Radicar from './pages/Radicar';
 import Consulta from './pages/Consulta';
@@ -18,6 +19,9 @@ import Bandeja from './pages/Bandeja';
 import { ExpedienteDetalle, ExpedientesLista } from './pages/Expedientes';
 import Bitacora from './pages/Bitacora';
 import Reportes from './pages/Reportes';
+import Usuarios from './pages/admin/Usuarios';
+import Roles from './pages/admin/Roles';
+import Dependencias from './pages/admin/Dependencias';
 
 const NAV = [
   { to: '/', label: 'Panel', icon: '▤', roles: [] as string[] },
@@ -27,6 +31,12 @@ const NAV = [
   { to: '/expedientes', label: 'Expedientes', icon: '▦', roles: [] },
   { to: '/reportes', label: 'Reportes', icon: '▧', roles: ['JEFE', 'RADICADOR', 'AUDITOR', 'ARCHIVISTA'] },
   { to: '/bitacora', label: 'Auditoría', icon: '⛨', roles: ['AUDITOR'] },
+];
+
+const NAV_ADMIN = [
+  { to: '/admin/usuarios', label: 'Usuarios', icon: '◍' },
+  { to: '/admin/roles', label: 'Roles', icon: '◈' },
+  { to: '/admin/dependencias', label: 'Dependencias', icon: '◫' },
 ];
 
 function Layout({ children }: { children: React.ReactNode }) {
@@ -53,6 +63,17 @@ function Layout({ children }: { children: React.ReactNode }) {
               {n.label}
             </NavLink>
           ))}
+          {tieneRol('ADMIN') && (
+            <>
+              <div className="nav-sep">Administración</div>
+              {NAV_ADMIN.map((n) => (
+                <NavLink key={n.to} to={n.to}>
+                  <span className="ico">{n.icon}</span>
+                  {n.label}
+                </NavLink>
+              ))}
+            </>
+          )}
         </nav>
         <div className="user">
           <strong>{usuario?.nombre}</strong>
@@ -68,10 +89,17 @@ function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
+function SoloAdmin({ children }: { children: React.ReactNode }) {
+  const { tieneRol } = useAuth();
+  if (!tieneRol('ADMIN')) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
 function Privado() {
   const { usuario, cargando } = useAuth();
   if (cargando) return <div className="loading">Cargando…</div>;
   if (!usuario) return <Navigate to="/login" replace />;
+  if (usuario.debeCambiarPassword) return <CambiarPasswordForzado />;
   return (
     <Layout>
       <Routes>
@@ -84,6 +112,9 @@ function Privado() {
         <Route path="/expedientes/:numero" element={<ExpedienteDetalle />} />
         <Route path="/reportes" element={<Reportes />} />
         <Route path="/bitacora" element={<Bitacora />} />
+        <Route path="/admin/usuarios" element={<SoloAdmin><Usuarios /></SoloAdmin>} />
+        <Route path="/admin/roles" element={<SoloAdmin><Roles /></SoloAdmin>} />
+        <Route path="/admin/dependencias" element={<SoloAdmin><Dependencias /></SoloAdmin>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

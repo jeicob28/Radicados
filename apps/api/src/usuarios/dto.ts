@@ -10,6 +10,18 @@ import {
   MinLength,
 } from 'class-validator';
 
+export class EstablecerPasswordDto {
+  @ApiProperty({ minLength: 8 })
+  @IsString()
+  @MinLength(8)
+  password!: string;
+
+  @ApiPropertyOptional({ default: true, description: 'Exigir cambio en el próximo ingreso' })
+  @IsOptional()
+  @IsBoolean()
+  forzarCambio?: boolean;
+}
+
 export class CrearUsuarioDto {
   @ApiProperty() @IsString() documento!: string;
   @ApiProperty() @IsString() nombre!: string;

@@ -10,6 +10,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { BitacoraService } from '../bitacora/bitacora.service';
 import { verifyPassword, hashPassword } from '../common/passwords';
+import { PasswordPolicyService } from '../common/password-policy.service';
 import type { AuditCtx } from './decorators';
 
 const ACCESS_TTL = '15m';
@@ -24,6 +25,7 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     private readonly bitacora: BitacoraService,
+    private readonly passwordPolicy: PasswordPolicyService,
   ) {}
 
   get refreshCookieName() {
@@ -98,10 +100,15 @@ export class AuthService {
       }
     }
 
+    const caducado = await this.passwordPolicy.haCaducado(usuario.passwordCambiadaEn);
     await this.prisma.usuario.update({
       where: { id: usuario.id },
-      data: { ultimoAcceso: new Date() },
+      data: {
+        ultimoAcceso: new Date(),
+        ...(caducado ? { debeCambiarPassword: true } : {}),
+      },
     });
+    if (caducado) usuario.debeCambiarPassword = true;
 
     const accessToken = await this.firmarAccessToken(usuario as never);
     const refreshToken = await this.emitirRefreshToken(usuario.id, ctx);
@@ -186,10 +193,15 @@ export class AuthService {
     if (!usuario?.passwordHash) throw new UnauthorizedException();
     const ok = await verifyPassword(usuario.passwordHash, actual);
     if (!ok) throw new UnauthorizedException('La contraseña actual no es correcta');
+    await this.passwordPolicy.validar(nueva);
 
     await this.prisma.usuario.update({
       where: { id: usuarioId },
-      data: { passwordHash: await hashPassword(nueva), debeCambiarPassword: false },
+      data: {
+        passwordHash: await hashPassword(nueva),
+        debeCambiarPassword: false,
+        passwordCambiadaEn: new Date(),
+      },
     });
     // se cierran todas las sesiones activas del usuario
     await this.prisma.refreshToken.updateMany({

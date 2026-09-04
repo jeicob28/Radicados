@@ -56,6 +56,14 @@ const PARAMETROS = [
     'Términos por tipo de comunicación en días hábiles. Verificar con Jurídica.',
   ],
   ['alertas.dias_habiles', { amarillo: 5, rojo: 2 }, 'Umbral de días hábiles restantes para el semáforo'],
+  [
+    'seguridad.password_policy',
+    {
+      minLength: 10, requireUpper: true, requireLower: true, requireNumber: true,
+      requireSpecial: false, caducidadDias: null,
+    },
+    'Política de contraseñas. caducidadDias=null desactiva la caducidad.',
+  ],
 ];
 
 const DEPENDENCIAS = [

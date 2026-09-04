@@ -52,8 +52,10 @@ Series/subseries, TRD, expedientes y transferencias se incorporan en fases poste
 | **F6** ✅ | Transferencias con inventario, disposición final con doble aprobación, MFA (TOTP), auditoría exportable firmada. | [`fase-6.md`](fase-6.md) |
 
 **Frontend (React + Vite):** panel de indicadores, radicar, consulta, detalle con trazabilidad y acciones
-por rol, mi bandeja, expedientes (índice, foliado, cierre), reportes, auditoría. Sesión con refresh
-transparente; navegación filtrada por rol.
+por rol, mi bandeja, expedientes (índice, foliado, cierre), reportes, auditoría, y administración
+(usuarios, roles, dependencias con su personal — ver adenda §19 de los requerimientos y
+[`fase-1.md`](fase-1.md)). Sesión con refresh transparente, cambio de contraseña obligatorio cuando
+corresponde, y navegación filtrada por rol.
 
 ## 5. Decisiones
 

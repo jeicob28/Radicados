@@ -14,7 +14,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { IsBoolean, IsOptional, IsString, IsUUID, Matches } from 'class-validator';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -51,6 +51,23 @@ class DependenciasService {
     private readonly prisma: PrismaService,
     private readonly bitacora: BitacoraService,
   ) {}
+
+  async obtener(id: string) {
+    const dep = await this.prisma.dependencia.findUnique({
+      where: { id },
+      include: {
+        parent: { select: { id: true, codigo: true, nombre: true } },
+        hijos: { select: { id: true, codigo: true, nombre: true, activa: true }, orderBy: { codigo: 'asc' } },
+        usuarios: {
+          select: { id: true, nombre: true, email: true, roles: true, activo: true, ultimoAcceso: true },
+          orderBy: { nombre: 'asc' },
+        },
+        _count: { select: { radicados: true, expedientes: true } },
+      },
+    });
+    if (!dep) throw new NotFoundException('Dependencia no encontrada');
+    return dep;
+  }
 
   async arbol(): Promise<DepNodo[]> {
     const todas = await this.prisma.dependencia.findMany({ orderBy: { codigo: 'asc' } });
@@ -127,6 +144,12 @@ class DependenciasController {
   @Get()
   arbol() {
     return this.deps.arbol();
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Detalle de una dependencia con su personal y sub-dependencias' })
+  obtener(@Param('id') id: string) {
+    return this.deps.obtener(id);
   }
 
   @Post()

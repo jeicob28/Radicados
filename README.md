@@ -85,7 +85,7 @@ compose.yml · compose.dev.yml · compose.prod.yml
 | Área | Endpoints |
 |---|---|
 | Autenticación | `auth/login` `auth/refresh` `auth/logout` `auth/me` `auth/cambiar-password` `auth/mfa/*` |
-| Administración | `usuarios` `roles` `dependencias` `terceros` `parametros` |
+| Administración | `usuarios` (+ `:id/password`, `:id/reset-password`, `:id/cerrar-sesiones`) · `roles` · `dependencias` (+ `:id` con su personal) · `terceros` · `parametros` |
 | Radicación | `radicados` (`POST`=radicar) · `radicados/adjuntos` · `radicados/:n/{anulacion,trazabilidad}` · `consecutivos` |
 | Seguimiento | `radicados/:n/{asignar,aceptar,trasladar,reasignar,devolver,cerrar,reabrir}` · `bandeja` · `seguimiento/{vencimientos,indicadores}` · `notificaciones` |
 | Gestión documental | `trd` `series` `subseries` `tipos-documentales` · `expedientes` (`:n/{documentos,foliar,cerrar,indice,verificar-integridad}`) · `radicados/:n/clasificar` |

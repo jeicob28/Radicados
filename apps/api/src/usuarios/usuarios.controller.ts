@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UsuariosService } from './usuarios.service';
-import { ActualizarUsuarioDto, CrearUsuarioDto } from './dto';
+import { ActualizarUsuarioDto, CrearUsuarioDto, EstablecerPasswordDto } from './dto';
 import { Auditoria, Roles } from '../auth/decorators';
 import type { AuditCtx } from '../auth/decorators';
 import { ROLES } from '../auth/roles';
@@ -22,9 +22,13 @@ export class UsuariosController {
   constructor(private readonly usuarios: UsuariosService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Lista usuarios (filtro por texto y estado)' })
-  listar(@Query('q') q?: string, @Query('activo') activo?: string) {
-    return this.usuarios.listar(q, activo === undefined ? undefined : activo === 'true');
+  @ApiOperation({ summary: 'Lista usuarios (filtro por texto, estado y dependencia)' })
+  listar(
+    @Query('q') q?: string,
+    @Query('activo') activo?: string,
+    @Query('dependenciaId') dependenciaId?: string,
+  ) {
+    return this.usuarios.listar(q, activo === undefined ? undefined : activo === 'true', dependenciaId);
   }
 
   @Get(':id')
@@ -48,8 +52,24 @@ export class UsuariosController {
   }
 
   @Post(':id/reset-password')
-  @ApiOperation({ summary: 'Restablece la contraseña y cierra las sesiones del usuario' })
+  @ApiOperation({ summary: 'Restablece la contraseña con una temporal aleatoria y cierra las sesiones' })
   resetPassword(@Param('id') id: string, @Auditoria() ctx: AuditCtx) {
     return this.usuarios.resetPassword(id, ctx);
+  }
+
+  @Post(':id/password')
+  @ApiOperation({ summary: 'Fija una contraseña concreta para el usuario' })
+  establecerPassword(
+    @Param('id') id: string,
+    @Body() dto: EstablecerPasswordDto,
+    @Auditoria() ctx: AuditCtx,
+  ) {
+    return this.usuarios.establecerPassword(id, dto.password, dto.forzarCambio ?? true, ctx);
+  }
+
+  @Post(':id/cerrar-sesiones')
+  @ApiOperation({ summary: 'Revoca todas las sesiones (refresh tokens) activas del usuario' })
+  cerrarSesiones(@Param('id') id: string, @Auditoria() ctx: AuditCtx) {
+    return this.usuarios.cerrarSesiones(id, ctx);
   }
 }

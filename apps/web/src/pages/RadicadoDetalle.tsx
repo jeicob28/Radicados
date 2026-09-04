@@ -35,6 +35,7 @@ interface Radicado {
   fechaVencimiento: string | null;
   destinatario: string | null;
   medioRespuesta: string | null;
+  dependenciaId: string | null;
   tercero?: { nombre: string; numeroDocumento: string; email: string | null } | null;
   dependencia?: { codigo: string; nombre: string } | null;
   funcionario?: { nombre: string } | null;
@@ -165,6 +166,7 @@ export default function RadicadoDetalle() {
         <AccionModal
           accion={accion}
           numero={r.numero}
+          dependenciaActualId={r.dependenciaId ?? undefined}
           onClose={() => setAccion(null)}
           onDone={() => {
             setAccion(null);
@@ -179,11 +181,13 @@ export default function RadicadoDetalle() {
 function AccionModal({
   accion,
   numero,
+  dependenciaActualId,
   onClose,
   onDone,
 }: {
   accion: AccionId;
   numero: string;
+  dependenciaActualId?: string;
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -200,10 +204,10 @@ function AccionModal({
     nodos.flatMap((n) => [{ id: n.id, label: `${n.codigo} · ${n.nombre}` }, ...flat(n.hijos)]);
 
   const cfg: Record<AccionId, { titulo: string; path: string; campos: string[] }> = {
-    asignar: { titulo: 'Asignar radicado', path: `/radicados/${numero}/asignar`, campos: ['dependenciaId', 'observacion'] },
+    asignar: { titulo: 'Asignar radicado', path: `/radicados/${numero}/asignar`, campos: ['dependenciaId', 'funcionarioId', 'observacion'] },
     clasificar: { titulo: 'Clasificar', path: `/radicados/${numero}/clasificar`, campos: ['serieId', 'nuevoExpedienteTitulo'] },
     aceptar: { titulo: 'Aceptar trámite', path: `/radicados/${numero}/aceptar`, campos: [] },
-    trasladar: { titulo: 'Trasladar', path: `/radicados/${numero}/trasladar`, campos: ['dependenciaId', 'motivo'] },
+    trasladar: { titulo: 'Trasladar', path: `/radicados/${numero}/trasladar`, campos: ['dependenciaId', 'funcionarioId', 'motivo'] },
     reasignar: { titulo: 'Reasignar', path: `/radicados/${numero}/reasignar`, campos: ['funcionarioId', 'motivo'] },
     cerrar: { titulo: 'Cerrar', path: `/radicados/${numero}/cerrar`, campos: ['observacion'] },
     reabrir: { titulo: 'Reabrir', path: `/radicados/${numero}/reabrir`, campos: ['motivo'] },
@@ -216,11 +220,24 @@ function AccionModal({
     [],
   );
 
+  // dependencia cuyo personal debe listarse en el selector de funcionario:
+  // la elegida en el propio formulario (asignar/trasladar) o, si no aplica, la dependencia actual del radicado (reasignar)
+  const dependenciaParaPersonal = c.campos.includes('dependenciaId') ? campos.dependenciaId : dependenciaActualId;
+  const personal = useAsync<{ id: string; nombre: string; email: string }[]>(
+    () =>
+      c.campos.includes('funcionarioId') && dependenciaParaPersonal
+        ? api(`/usuarios?dependenciaId=${dependenciaParaPersonal}&activo=true`)
+        : Promise.resolve([]),
+    [dependenciaParaPersonal],
+  );
+
   const submit = async () => {
     setEnviando(true);
     setError(null);
     try {
-      await api(c.path, { method: 'POST', body: JSON.stringify(campos) });
+      const body: Record<string, string> = { ...campos };
+      if (!body.funcionarioId) delete body.funcionarioId;
+      await api(c.path, { method: 'POST', body: JSON.stringify(body) });
       onDone();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -229,18 +246,39 @@ function AccionModal({
     }
   };
 
+  const ETIQUETAS: Record<string, string> = {
+    dependenciaId: 'Dependencia',
+    funcionarioId: 'Funcionario',
+    observacion: 'Observación',
+    motivo: 'Motivo',
+    justificacion: 'Justificación',
+    serieId: 'Serie documental',
+    nuevoExpedienteTitulo: 'Título del expediente nuevo',
+  };
+
   return (
     <Modal title={c.titulo} onClose={onClose}>
       {c.campos.length === 0 && <p>¿Confirmar la acción sobre {numero}?</p>}
       {c.campos.map((k) => (
         <label key={k} className="field">
-          <span>{k === 'nuevoExpedienteTitulo' ? 'Título del expediente' : k}</span>
+          <span>{ETIQUETAS[k] ?? k}</span>
           {k === 'dependenciaId' ? (
-            <select value={campos[k] ?? ''} onChange={(e) => set(k, e.target.value)}>
+            <select value={campos[k] ?? ''} onChange={(e) => { set(k, e.target.value); set('funcionarioId', ''); }}>
               <option value="">— seleccione —</option>
               {(deps.data ? flat(deps.data) : []).map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.label}
+                </option>
+              ))}
+            </select>
+          ) : k === 'funcionarioId' ? (
+            <select value={campos[k] ?? ''} onChange={(e) => set(k, e.target.value)} disabled={!dependenciaParaPersonal}>
+              <option value="">
+                {dependenciaParaPersonal ? '— sin asignar a una persona —' : 'elija primero la dependencia'}
+              </option>
+              {(personal.data ?? []).map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.nombre}
                 </option>
               ))}
             </select>

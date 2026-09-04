@@ -688,3 +688,113 @@ electrónica, se debe evaluar además si la solución ofrecida realmente
 corresponde a un **SGDEA** y si sus funcionalidades permiten implementar
 la estructura archivística y los instrumentos de gestión documental de
 la organización.
+
+------------------------------------------------------------------------
+
+# 19. Adenda — Módulo de usuarios y módulo de dependencias
+
+> Requerimiento adicional solicitado el 2026-09-04, una vez implementado
+> el núcleo de radicación. Se documenta aquí con el mismo criterio que el
+> resto de este archivo, como referencia normativa del sistema.
+
+## 19.1 Módulo de usuarios
+
+El sistema debe permitir administrar de forma centralizada quiénes
+pueden operarlo y con qué permisos, sin intervención directa sobre la
+base de datos.
+
+  -----------------------------------------------------------------------
+  Funcionalidad                       Requerimiento
+  ----------------------------------- -----------------------------------
+  Alta de usuarios                    Registrar documento, nombre,
+                                       correo, dependencia y uno o varios
+                                       roles
+
+  Gestión de roles                    Crear, listar y editar roles del
+                                       sistema y sus permisos; los roles
+                                       base del sistema no permiten editar
+                                       sus permisos
+
+  Activar / inactivar                 Suspender el acceso de un usuario
+                                       sin eliminar su historial ni su
+                                       autoría en radicados y bitácora
+
+  Contraseña temporal                 Al crear un usuario o restablecer
+                                       su acceso, generar una contraseña
+                                       temporal de un solo uso
+
+  Contraseña específica               El administrador puede fijar
+                                       directamente una contraseña para
+                                       el usuario, con o sin exigir que la
+                                       cambie en el siguiente ingreso
+
+  Cambio obligatorio en primer         Un usuario con contraseña temporal
+  ingreso                              o vencida no puede usar el sistema
+                                       hasta cambiarla
+
+  Política de contraseñas             Longitud mínima, mayúsculas,
+                                       minúsculas, números y caducidad en
+                                       días, configurables como parámetro
+                                       del sistema
+
+  Cierre de sesiones                  El administrador puede revocar de
+                                       inmediato todas las sesiones
+                                       activas de un usuario (retiro,
+                                       sospecha de compromiso)
+
+  Segundo factor (MFA)                Cada usuario puede activar
+                                       verificación en dos pasos (TOTP)
+                                       para su propia cuenta
+
+  Trazabilidad                        Toda alta, cambio de rol,
+                                       activación/inactivación y gestión
+                                       de contraseña queda en la bitácora
+                                       de auditoría
+  -----------------------------------------------------------------------
+
+No se permite el autorregistro de usuarios internos: toda cuenta la crea
+un administrador. La eliminación física de usuarios no está permitida
+por la misma regla de trazabilidad que aplica a los radicados
+(sección 3): un usuario se **inactiva**, nunca se borra.
+
+## 19.2 Módulo de dependencias
+
+El organigrama de la organización debe reflejarse en el sistema para que
+la radicación, la distribución y la clasificación archivística puedan
+apoyarse en él.
+
+  -----------------------------------------------------------------------
+  Funcionalidad                       Requerimiento
+  ----------------------------------- -----------------------------------
+  Alta de dependencias                Registrar código, nombre y
+                                       dependencia superior (organigrama
+                                       jerárquico, sin límite de niveles)
+
+  Edición                             Cambiar nombre, superior jerárquico
+                                       o estado (activa/inactiva)
+
+  Personal de la dependencia          Ver, en la ficha de cada
+                                       dependencia, las personas que la
+                                       integran; asignar o quitar personal
+                                       desde el módulo de usuarios o desde
+                                       la propia dependencia
+
+  Un usuario, una dependencia         Cada persona pertenece a una única
+                                       dependencia a la vez; moverla de
+                                       dependencia la retira
+                                       automáticamente de la anterior
+
+  Uso en la radicación                Al recibir o distribuir un
+                                       documento, se elige primero la
+                                       dependencia y luego, entre su
+                                       personal, la persona responsable
+                                       (quien recibe o a quien se asigna)
+
+  Indicadores por dependencia         Cantidad de radicados y expedientes
+                                       asociados a cada dependencia
+  -----------------------------------------------------------------------
+
+No se incorpora, por decisión del solicitante, un "responsable" o jefe
+por defecto al que se asignen automáticamente los documentos de la
+dependencia: la asignación a una persona concreta siempre es una
+decisión explícita de quien distribuye.

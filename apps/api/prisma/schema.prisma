@@ -149,6 +149,7 @@ model Usuario {
   dependencia         Dependencia? @relation(fields: [dependenciaId], references: [id])
   ultimoAcceso        DateTime?    @map("ultimo_acceso")
   debeCambiarPassword Boolean      @default(false) @map("debe_cambiar_password")
+  passwordCambiadaEn  DateTime?    @map("password_cambiada_en")
   mfaSecret           String?      @map("mfa_secret")
   mfaHabilitado       Boolean      @default(false) @map("mfa_habilitado")
   creado              DateTime     @default(now())
