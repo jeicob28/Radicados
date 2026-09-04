@@ -126,8 +126,15 @@ services:
     environment:
       API_UPSTREAM: api:3000
       WEB_UPSTREAM: web:80
+      # IP o nombre por el que el personal accede a la app; entra en el
+      # certificado TLS autofirmado para que el navegador lo acepte sin
+      # error de nombre. Cámbialo si cambia la IP del servidor.
+      TLS_HOST: ${TLS_HOST:-localhost}
     ports:
       - "${HTTP_PORT:-8080}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - proxycerts:/etc/nginx/certs
     depends_on:
       - api
       - web
@@ -137,3 +144,4 @@ volumes:
   pgdata:
   redisdata:
   miniodata:
+  proxycerts:

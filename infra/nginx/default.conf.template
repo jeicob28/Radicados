@@ -4,9 +4,22 @@
 # apuntando a una IP muerta hasta que se reinicie manualmente (502).
 resolver 127.0.0.11 valid=10s ipv6=off;
 
+# HTTP: redirige a HTTPS. La cámara del navegador (getUserMedia) exige un
+# "contexto seguro" y no funciona en HTTP salvo en localhost.
 server {
     listen 80;
     server_name _;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name _;
+
+    ssl_certificate     /etc/nginx/certs/server.crt;
+    ssl_certificate_key /etc/nginx/certs/server.key;
+    ssl_protocols       TLSv1.2 TLSv1.3;
 
     client_max_body_size 50m;
 
