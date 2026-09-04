@@ -213,3 +213,28 @@ hr.soft { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
 }
 .dep-nodo:hover { background: var(--surface-2); }
 .dep-nodo.sel { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+/* ---------- captura de cámara ---------- */
+.camara-visor {
+  width: 100%; aspect-ratio: 4 / 3; background: #111; border-radius: 8px; overflow: hidden;
+  display: flex; align-items: center; justify-content: center; margin: 10px 0;
+}
+.camara-visor video, .camara-visor img { width: 100%; height: 100%; object-fit: cover; }
+
+.capturas-lista { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.captura-item { position: relative; width: 72px; height: 72px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); }
+.captura-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.captura-item button {
+  position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border-radius: 50%;
+  border: none; background: rgba(20, 25, 35, 0.7); color: #fff; font-size: 12px; line-height: 1;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+
+/* ---------- firma ---------- */
+.firma-wrap { margin-bottom: 12px; }
+.firma-canvas {
+  width: 100%; height: 160px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px 8px 0 0; touch-action: none; cursor: crosshair; display: block;
+}
+.firma-linea { border-top: 1px dashed var(--border); margin: 0 14px; }
+.firma-acciones { display: flex; justify-content: space-between; align-items: center; padding: 6px 2px 0; font-size: 0.78rem; }

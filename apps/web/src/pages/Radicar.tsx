@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { Boton, Card, ErrorMsg, Field, useAsync } from '../ui';
+import CapturaCamara from '../components/CapturaCamara';
+import FirmaPad from '../components/FirmaPad';
 
 const CANALES = ['PRESENCIAL', 'CORREO', 'WEB', 'FORMULARIO', 'TELEFONO', 'FISICO'];
 const TIPOS_COM = [
@@ -52,6 +54,9 @@ export default function Radicar() {
     enRespuestaA: '',
   });
   const [archivos, setArchivos] = useState<FileList | null>(null);
+  const [capturas, setCapturas] = useState<File[]>([]);
+  const [mostrarCamara, setMostrarCamara] = useState(false);
+  const [firma, setFirma] = useState<File | null>(null);
   const [terceros, setTerceros] = useState<Tercero[]>([]);
   const [buscando, setBuscando] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -70,12 +75,15 @@ export default function Radicar() {
     setEnviando(true);
     setError(null);
     try {
-      let adjuntos: unknown[] = [];
-      if (archivos && archivos.length) {
+      const todos = [...Array.from(archivos ?? []), ...capturas, ...(firma ? [firma] : [])];
+      let adjuntos: Array<{ nombre: string; descripcion?: string; [k: string]: unknown }> = [];
+      if (todos.length) {
         const fd = new FormData();
-        Array.from(archivos).forEach((a) => fd.append('files', a));
-        const res = await api<{ adjuntos: unknown[] }>('/radicados/adjuntos', { method: 'POST', body: fd });
-        adjuntos = res.adjuntos;
+        todos.forEach((a) => fd.append('files', a));
+        const res = await api<{ adjuntos: typeof adjuntos }>('/radicados/adjuntos', { method: 'POST', body: fd });
+        adjuntos = res.adjuntos.map((a) =>
+          a.nombre === 'firma-recepcion.png' ? { ...a, descripcion: 'Firma de quien entrega el documento' } : a,
+        );
       }
       const payload: Record<string, unknown> = {
         tipo: form.tipo,
@@ -189,9 +197,38 @@ export default function Radicar() {
             </Field>
           )}
 
-          <Field label="Anexos">
-            <input type="file" multiple onChange={(e) => setArchivos(e.target.files)} />
+          <Field label="Anexos" hint="Archivos, o fotografía documentos físicos con la cámara">
+            <div className="chips">
+              <input type="file" multiple onChange={(e) => setArchivos(e.target.files)} style={{ flex: 1 }} />
+              <Boton variante="ghost" onClick={() => setMostrarCamara(true)}>
+                📷 Tomar foto
+              </Boton>
+            </div>
+            {capturas.length > 0 && (
+              <div className="capturas-lista">
+                {capturas.map((f, i) => (
+                  <div className="captura-item" key={i}>
+                    <img src={URL.createObjectURL(f)} alt={`Captura ${i + 1}`} />
+                    <button
+                      type="button"
+                      onClick={() => setCapturas((c) => c.filter((_, j) => j !== i))}
+                      aria-label="Quitar"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </Field>
+
+          {form.canal === 'PRESENCIAL' && (
+            <div className="col-full">
+              <Field label="Firma de quien entrega el documento (opcional)">
+                <FirmaPad onChange={setFirma} />
+              </Field>
+            </div>
+          )}
 
           {error && (
             <div className="col-full">
@@ -205,6 +242,14 @@ export default function Radicar() {
           </div>
         </form>
       </Card>
+
+      {mostrarCamara && (
+        <CapturaCamara
+          titulo="Fotografiar documento"
+          onCapturar={(f) => setCapturas((c) => [...c, f])}
+          onClose={() => setMostrarCamara(false)}
+        />
+      )}
     </div>
   );
 }

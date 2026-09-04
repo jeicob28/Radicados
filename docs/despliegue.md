@@ -55,6 +55,14 @@ Hoy el proxy expone HTTP. Para producción real, terminar TLS delante (balancead
 corporativo) o cambiar `infra/nginx` por Caddy con Let's Encrypt. Los datos personales
 de terceros (Ley 1581) exigen HTTPS antes del arranque real.
 
+Además, mientras el sitio esté en HTTP, la **vista previa en vivo de la cámara** (captura
+de fotos, §20 de los requerimientos) solo funciona si se abre la app como
+`http://localhost:HTTP_PORT` **en el propio servidor** — el navegador bloquea el acceso a
+la cámara en HTTP desde cualquier otro equipo de la red por política de "contexto
+seguro". Desde el móvil no afecta (usa el selector nativo de cámara, no la vista en
+vivo). Activar HTTPS (aunque sea con un certificado autofirmado) habilita la cámara en
+vivo desde cualquier PC de la red.
+
 ## 6. Backups
 
 ```bash

@@ -798,3 +798,73 @@ No se incorpora, por decisión del solicitante, un "responsable" o jefe
 por defecto al que se asignen automáticamente los documentos de la
 dependencia: la asignación a una persona concreta siempre es una
 decisión explícita de quien distribuye.
+
+------------------------------------------------------------------------
+
+# 20. Adenda — Captura de documentos por cámara y firma en la recepción
+
+> Requerimiento adicional solicitado el 2026-09-04, para reforzar la
+> digitalización en la Ventanilla Única (capítulo 5, módulo 1 del
+> capítulo 13) con evidencia capturada en el momento de la recepción.
+
+## 20.1 Captura fotográfica
+
+Al radicar, o al incorporar un documento a un expediente, el usuario debe
+poder anexar la evidencia sin pasar primero por un escáner:
+
+  -----------------------------------------------------------------------
+  Funcionalidad                       Requerimiento
+  ----------------------------------- -----------------------------------
+  Foto desde el móvil                 Si se opera desde un teléfono o
+                                       tableta, un botón "Tomar foto" abre
+                                       la cámara nativa del equipo
+
+  Cámara en el computador             Si se opera desde un PC con cámara
+                                       (integrada o USB), el mismo botón
+                                       muestra una vista previa en vivo,
+                                       permite elegir el dispositivo si
+                                       hay más de uno, y capturar
+
+  Varias fotos por radicado           Se pueden tomar y adjuntar varias
+                                       fotos, revisarlas en miniatura y
+                                       quitar las que no sirvan antes de
+                                       radicar
+
+  Mismo tratamiento que un archivo    La foto capturada recibe el mismo
+                                       control de integridad (checksum),
+                                       almacenamiento y verificación que
+                                       cualquier otro anexo (capítulo 9)
+  -----------------------------------------------------------------------
+
+La vista previa en vivo de la cámara requiere que el sitio se sirva por
+**HTTPS** (exigencia de seguridad de los navegadores, no del sistema); si
+el sitio está en HTTP, la aplicación recurre automáticamente al selector
+de cámara nativo del sistema operativo, que sí funciona sin HTTPS —esto
+cubre el caso del móvil sin condiciones adicionales.
+
+## 20.2 Firma en la recepción
+
+Cuando la comunicación se recibe de forma **presencial**, el sistema
+ofrece un campo para capturar la firma de quien hace entrega del
+documento, como constancia de la recepción:
+
+  -----------------------------------------------------------------------
+  Funcionalidad                       Requerimiento
+  ----------------------------------- -----------------------------------
+  Firma manuscrita en pantalla        Firmar con el mouse, con el dedo
+                                       (pantalla táctil) o con lápiz
+                                       óptico/tableta, indistintamente
+
+  Opcional                            No es obligatoria; no bloquea la
+                                       radicación si quien entrega no
+                                       puede o no desea firmar en el
+                                       equipo
+
+  Solo cuando aplica                  El campo solo se ofrece cuando el
+                                       canal de recepción es presencial
+
+  Conservación                        La firma queda conservada como
+                                       evidencia asociada al radicado, con
+                                       el mismo control de integridad que
+                                       los demás anexos
+  -----------------------------------------------------------------------

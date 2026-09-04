@@ -16,6 +16,31 @@
 - `GET /api/v1/radicados/:numero/adjuntos/:id/descarga` — stream auditado (acción `DESCARGAR`).
 - `GET /api/v1/consecutivos` · `PATCH /api/v1/consecutivos/:id` (RADICADOR) — formato y rango de contingencia.
 
+## Adenda (2026-09-04) — Captura por cámara y firma en la recepción
+
+Sin cambios de API: la foto y la firma se suben por el mismo
+`POST /radicados/adjuntos` que cualquier archivo, y viajan en `adjuntos[]` al
+radicar. Ver requisito formal en Requerimientos §20 y componentes de frontend:
+
+- `apps/web/src/components/CapturaCamara.tsx` — `getUserMedia` con selector de
+  dispositivo (útil para elegir una webcam USB) y captura a JPEG; si el sitio no
+  corre en un contexto seguro (HTTPS o `localhost`) o el navegador niega el
+  permiso, cae a `<input type="file" accept="image/*" capture="environment">`,
+  que abre la cámara nativa en un móvil sin necesitar HTTPS.
+- `apps/web/src/components/FirmaPad.tsx` — lienzo con eventos de puntero
+  unificados (mouse, táctil, lápiz); exporta PNG al soltar el trazo.
+- Integrados en `Radicar.tsx` (foto siempre disponible; firma solo si
+  `canal === 'PRESENCIAL'`) y en `Expedientes.tsx` (incorporar documento).
+- El archivo de firma se sube con el nombre fijo `firma-recepcion.png`, que el
+  frontend usa para etiquetarlo con la descripción "Firma de quien entrega el
+  documento" antes de radicar.
+
+Verificado con Chrome headless + dispositivo de cámara simulado: vista previa
+en vivo, captura, miniatura con opción de quitar, firma dibujada con eventos de
+mouse simulados, radicación con **2 anexos reales** (`captura-*.jpg` 9 KB,
+`firma-recepcion.png` 5.8 KB, con su descripción) verificados vía API tras el
+envío; e incorporación de la misma foto/firma al índice del expediente.
+
 ## Verificado (stack en contenedores)
 
 ```

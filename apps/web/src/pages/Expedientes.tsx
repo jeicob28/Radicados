@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useAuth } from '../auth';
-import { Boton, Card, ErrorMsg, fechaCorta, useAsync } from '../ui';
+import { Boton, Card, ErrorMsg, Field, Modal, fechaCorta, useAsync } from '../ui';
+import CapturaCamara from '../components/CapturaCamara';
 
 interface ExpLista {
   numero: string;
@@ -145,6 +146,8 @@ export function ExpedienteDetalle() {
   );
   const indice = useAsync<any>(() => api(`/expedientes/${numero}/indice`), [numero]);
 
+  const [incorporando, setIncorporando] = useState(false);
+
   const accion = async (path: string) => {
     await api(`/expedientes/${numero}/${path}`, { method: 'POST' });
     recargar();
@@ -165,15 +168,24 @@ export function ExpedienteDetalle() {
             <span className="pill acc">{e.serie.codigo} · {e.serie.nombre}</span>
           </div>
         </div>
-        {tieneRol('ARCHIVISTA') && e.estado === 'ABIERTO' && (
+        {e.estado === 'ABIERTO' && (
           <div className="chips">
-            <Boton variante="ghost" onClick={() => accion('foliar')}>
-              Foliar
-            </Boton>
-            <Boton variante="ghost" onClick={() => accion('verificar-integridad')}>
-              Verificar integridad
-            </Boton>
-            <Boton onClick={() => accion('cerrar')}>Cerrar expediente</Boton>
+            {tieneRol('ARCHIVISTA', 'FUNCIONARIO', 'JEFE') && (
+              <Boton variante="ghost" onClick={() => setIncorporando(true)}>
+                + Incorporar documento
+              </Boton>
+            )}
+            {tieneRol('ARCHIVISTA') && (
+              <>
+                <Boton variante="ghost" onClick={() => accion('foliar')}>
+                  Foliar
+                </Boton>
+                <Boton variante="ghost" onClick={() => accion('verificar-integridad')}>
+                  Verificar integridad
+                </Boton>
+                <Boton onClick={() => accion('cerrar')}>Cerrar expediente</Boton>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -244,6 +256,100 @@ export function ExpedienteDetalle() {
           ))}
         </ul>
       </Card>
+
+      {incorporando && (
+        <IncorporarDocumentoModal
+          numero={numero!}
+          onClose={() => setIncorporando(false)}
+          onDone={() => {
+            setIncorporando(false);
+            recargar();
+            indice.recargar();
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+function IncorporarDocumentoModal({
+  numero,
+  onClose,
+  onDone,
+}: {
+  numero: string;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [titulo, setTitulo] = useState('');
+  const [archivo, setArchivo] = useState<File | null>(null);
+  const [mostrarCamara, setMostrarCamara] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+
+  const guardar = async () => {
+    if (!archivo) return setError('Adjunte un archivo o tome una foto');
+    setEnviando(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.append('titulo', titulo || archivo.name);
+      fd.append('file', archivo);
+      await api(`/expedientes/${numero}/documentos`, { method: 'POST', body: fd });
+      onDone();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  return (
+    <Modal title="Incorporar documento" onClose={onClose}>
+      <Field label="Título del documento">
+        <input value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Ej. Acta de reunión" />
+      </Field>
+      <Field label="Archivo" hint="Suba un archivo o fotografíe el documento físico">
+        <div className="chips">
+          <input type="file" onChange={(e) => setArchivo(e.target.files?.[0] ?? null)} style={{ flex: 1 }} />
+          <Boton variante="ghost" onClick={() => setMostrarCamara(true)}>
+            📷 Tomar foto
+          </Boton>
+        </div>
+        {archivo && (
+          <div className="capturas-lista">
+            <div className="captura-item">
+              {archivo.type.startsWith('image/') ? (
+                <img src={URL.createObjectURL(archivo)} alt={archivo.name} />
+              ) : (
+                <span className="mono" style={{ fontSize: 10, padding: 4, display: 'block' }}>
+                  {archivo.name}
+                </span>
+              )}
+              <button type="button" onClick={() => setArchivo(null)} aria-label="Quitar">
+                ×
+              </button>
+            </div>
+          </div>
+        )}
+      </Field>
+      {error && <ErrorMsg>{error}</ErrorMsg>}
+      <div className="modal-acciones">
+        <Boton variante="ghost" onClick={onClose}>
+          Cancelar
+        </Boton>
+        <Boton onClick={guardar} disabled={enviando}>
+          {enviando ? 'Subiendo…' : 'Incorporar'}
+        </Boton>
+      </div>
+
+      {mostrarCamara && (
+        <CapturaCamara
+          titulo="Fotografiar documento"
+          onCapturar={(f) => setArchivo(f)}
+          onClose={() => setMostrarCamara(false)}
+        />
+      )}
+    </Modal>
   );
 }
