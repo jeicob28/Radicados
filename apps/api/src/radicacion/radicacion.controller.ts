@@ -20,8 +20,8 @@ import type { Response } from 'express';
 import { RadicacionService } from './radicacion.service';
 import { AdjuntosService } from './adjuntos.service';
 import { AnularRadicadoDto, RadicarDto } from './dto';
-import { Auditoria, Roles } from '../auth/decorators';
-import type { AuditCtx } from '../auth/decorators';
+import { Auditoria, CurrentUser, Roles } from '../auth/decorators';
+import type { AuditCtx, UsuarioActual } from '../auth/decorators';
 import { ROLES } from '../auth/roles';
 import { BitacoraService } from '../bitacora/bitacora.service';
 import { StorageService } from '../storage/storage.service';
@@ -38,7 +38,7 @@ export class RadicacionController {
   ) {}
 
   @Post('adjuntos')
-  @Roles(ROLES.VENTANILLA, ROLES.FUNCIONARIO, ROLES.RADICADOR, ROLES.JEFE)
+  @Roles(ROLES.VENTANILLA)
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Sube uno o varios archivos y devuelve sus descriptores (con checksum)' })
   @UseInterceptors(FilesInterceptor('files', 20))
@@ -57,15 +57,24 @@ export class RadicacionController {
   }
 
   @Post()
-  @Roles(ROLES.VENTANILLA, ROLES.FUNCIONARIO, ROLES.RADICADOR, ROLES.JEFE)
-  @ApiOperation({ summary: 'Radica una comunicación (asigna consecutivo en transacción SERIALIZABLE)' })
+  @Roles(ROLES.VENTANILLA)
+  @ApiOperation({
+    summary:
+      'Radica una comunicación (asigna consecutivo en transacción SERIALIZABLE). ' +
+      'Ventanilla única: centraliza tanto la entrada como la salida (respuestas).',
+  })
   radicar(@Body() dto: RadicarDto, @Auditoria() ctx: AuditCtx) {
     return this.radicacion.radicar(dto, ctx);
   }
 
   @Get()
-  @ApiOperation({ summary: 'Consulta de radicados (número, asunto, remitente, estado, fechas…)' })
+  @ApiOperation({
+    summary:
+      'Consulta de radicados (número, asunto, remitente, estado, fechas…). ' +
+      'Quien no tenga visibilidad total solo ve los de su propia dependencia.',
+  })
   listar(
+    @CurrentUser() usuario: UsuarioActual,
     @Query('q') q?: string,
     @Query('tipo') tipo?: string,
     @Query('estado') estado?: string,
@@ -78,29 +87,32 @@ export class RadicacionController {
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
   ) {
-    return this.radicacion.listar({
-      q,
-      tipo,
-      estado,
-      tipoComunicacion,
-      dependenciaId,
-      vigencia: vigencia ? Number(vigencia) : undefined,
-      desde: desde ? new Date(desde) : undefined,
-      hasta: hasta ? new Date(hasta) : undefined,
-      soloVencidos: vencidos === 'true',
-      page: page ? Number(page) : undefined,
-      pageSize: pageSize ? Number(pageSize) : undefined,
-    });
+    return this.radicacion.listar(
+      {
+        q,
+        tipo,
+        estado,
+        tipoComunicacion,
+        dependenciaId,
+        vigencia: vigencia ? Number(vigencia) : undefined,
+        desde: desde ? new Date(desde) : undefined,
+        hasta: hasta ? new Date(hasta) : undefined,
+        soloVencidos: vencidos === 'true',
+        page: page ? Number(page) : undefined,
+        pageSize: pageSize ? Number(pageSize) : undefined,
+      },
+      usuario,
+    );
   }
 
   @Get(':numero')
-  obtener(@Param('numero') numero: string) {
-    return this.radicacion.obtener(numero);
+  obtener(@Param('numero') numero: string, @CurrentUser() usuario: UsuarioActual) {
+    return this.radicacion.obtener(numero, usuario);
   }
 
   @Get(':numero/trazabilidad')
-  trazabilidad(@Param('numero') numero: string) {
-    return this.radicacion.trazabilidad(numero);
+  trazabilidad(@Param('numero') numero: string, @CurrentUser() usuario: UsuarioActual) {
+    return this.radicacion.trazabilidad(numero, usuario);
   }
 
   @Post(':numero/anulacion')
@@ -122,7 +134,7 @@ export class RadicacionController {
     @Auditoria() ctx: AuditCtx,
     @Res() res: Response,
   ) {
-    const r = await this.radicacion.obtener(numero);
+    const r = await this.radicacion.obtener(numero, ctx.usuario);
     const anexo = r.anexos.find((a) => a.id === anexoId);
     if (!anexo) {
       res.status(404).json({ message: 'Anexo no encontrado' });

@@ -1,7 +1,13 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api, type RadicadoLista } from '../api';
+import { useAuth } from '../auth';
 import { Alerta, Card, EstadoPill, ErrorMsg, fechaCorta, useAsync } from '../ui';
+
+// Roles con visibilidad total (ver también radicacion.service.ts en la API,
+// que es quien realmente la impone). Los demás solo ven su dependencia —
+// esta lista es solo para mostrar el aviso correcto, no aplica el filtro.
+const ROLES_VISIBILIDAD_TOTAL = ['VENTANILLA', 'ARCHIVISTA', 'AUDITOR', 'RADICADOR'];
 
 interface Pagina {
   total: number;
@@ -13,6 +19,8 @@ interface Pagina {
 const ESTADOS = ['', 'RADICADO', 'CLASIFICADO', 'ASIGNADO', 'EN_TRAMITE', 'RESPONDIDO', 'CERRADO', 'ANULADO'];
 
 export default function Consulta() {
+  const { tieneRol } = useAuth();
+  const soloMiDependencia = !tieneRol(...ROLES_VISIBILIDAD_TOTAL);
   const [sp, setSp] = useSearchParams();
   const [q, setQ] = useState(sp.get('q') ?? '');
   const [estado, setEstado] = useState(sp.get('estado') ?? '');
@@ -50,6 +58,11 @@ export default function Consulta() {
   return (
     <div className="page">
       <h1>Consulta de radicados</h1>
+      {soloMiDependencia && (
+        <p className="vacio" style={{ textAlign: 'left', padding: '0 0 10px' }}>
+          Solo se muestran los radicados de tu dependencia.
+        </p>
+      )}
       <Card>
         <div className="filtros">
           <input

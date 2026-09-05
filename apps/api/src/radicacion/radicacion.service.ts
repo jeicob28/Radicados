@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -10,8 +11,27 @@ import { PrismaService } from '../prisma/prisma.service';
 import { BitacoraService } from '../bitacora/bitacora.service';
 import { DiasHabilesService } from '../common/dias-habiles.service';
 import { hashRadicado } from '../common/hash';
-import type { AuditCtx } from '../auth/decorators';
+import type { AuditCtx, UsuarioActual } from '../auth/decorators';
+import { ROLES } from '../auth/roles';
 import { AnularRadicadoDto, RadicarDto } from './dto';
+
+/**
+ * Roles con visibilidad total sobre los radicados, sin importar la
+ * dependencia: VENTANILLA (ventanilla única, recibe y reparte todo),
+ * ARCHIVISTA (debe ver lo sin clasificar de cualquier área para poder
+ * clasificarlo), AUDITOR (lectura total por definición) y RADICADOR
+ * (coordina el consecutivo y anula, función transversal). ADMIN siempre
+ * tiene acceso total (superrol, ver RolesGuard) aunque no esté en esta
+ * lista. Cualquier otro rol (FUNCIONARIO, JEFE) solo ve lo asignado a su
+ * propia dependencia — modelo de ventanilla única centralizada.
+ */
+const ROLES_VISIBILIDAD_TOTAL: string[] = [
+  ROLES.ADMIN,
+  ROLES.VENTANILLA,
+  ROLES.ARCHIVISTA,
+  ROLES.AUDITOR,
+  ROLES.RADICADOR,
+];
 
 interface AsignacionConsecutivo {
   consecutivo_id: string;
@@ -28,6 +48,12 @@ export class RadicacionService {
     private readonly bitacora: BitacoraService,
     private readonly diasHabiles: DiasHabilesService,
   ) {}
+
+  /** true si el usuario ve todos los radicados sin importar la dependencia. */
+  private tieneVisibilidadTotal(usuario?: UsuarioActual): boolean {
+    const roles = usuario?.roles ?? [];
+    return ROLES_VISIBILIDAD_TOTAL.some((r) => roles.includes(r));
+  }
 
   private async vigenciaActual(): Promise<number> {
     const p = await this.prisma.parametro.findUnique({
@@ -236,7 +262,19 @@ export class RadicacionService {
     soloVencidos?: boolean;
     page?: number;
     pageSize?: number;
-  }) {
+  }, usuario?: UsuarioActual) {
+    const page = Math.max(params.page ?? 1, 1);
+    const pageSize = Math.min(params.pageSize ?? 20, 100);
+
+    // Ventanilla única: quien no tiene visibilidad total solo ve lo asignado
+    // a su propia dependencia (ignora cualquier dependenciaId que haya
+    // pedido por query — no puede curiosear otras áreas), y si no tiene
+    // dependencia asignada, no ve nada.
+    if (usuario && !this.tieneVisibilidadTotal(usuario)) {
+      if (!usuario.dependenciaId) return { total: 0, page, pageSize, items: [] };
+      params = { ...params, dependenciaId: usuario.dependenciaId };
+    }
+
     const where: Prisma.RadicadoWhereInput = {};
     if (params.tipo) where.tipo = params.tipo as never;
     if (params.estado) where.estado = params.estado as never;
@@ -262,9 +300,6 @@ export class RadicacionService {
       ];
     }
 
-    const page = Math.max(params.page ?? 1, 1);
-    const pageSize = Math.min(params.pageSize ?? 20, 100);
-
     const [total, items] = await Promise.all([
       this.prisma.radicado.count({ where }),
       this.prisma.radicado.findMany({
@@ -284,7 +319,13 @@ export class RadicacionService {
     return { total, page, pageSize, items };
   }
 
-  async obtener(numero: string) {
+  /**
+   * `usuario` solo se pasa desde rutas públicas (controller); las llamadas
+   * internas tras radicar/anular se hacen sin él a propósito, para mostrarle
+   * al actor el registro que él mismo acaba de crear/modificar sin importar
+   * su dependencia.
+   */
+  async obtener(numero: string, usuario?: UsuarioActual) {
     const r = await this.prisma.radicado.findUnique({
       where: { numero },
       include: {
@@ -303,11 +344,14 @@ export class RadicacionService {
       },
     });
     if (!r) throw new NotFoundException(`Radicado ${numero} no encontrado`);
+    if (usuario && !this.tieneVisibilidadTotal(usuario) && r.dependenciaId !== usuario.dependenciaId) {
+      throw new ForbiddenException('No tiene acceso a este radicado');
+    }
     return r;
   }
 
-  async trazabilidad(numero: string) {
-    const r = await this.obtener(numero);
+  async trazabilidad(numero: string, usuario?: UsuarioActual) {
+    const r = await this.obtener(numero, usuario);
     return {
       numero: r.numero,
       estado: r.estado,

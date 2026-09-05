@@ -36,13 +36,15 @@ export const CATALOGO_ROLES: Array<{
   {
     codigo: ROLES.VENTANILLA,
     nombre: 'Ventanilla única',
-    descripcion: 'Recepción y radicación de entrada, digitalización, registro de terceros.',
+    descripcion:
+      'Recepción, digitalización y registro de terceros; único rol que radica (entrada y salida) — centraliza la radicación de toda la empresa.',
     permisos: ['recepcion:crear', 'radicado:crear', 'tercero:crear', 'tercero:leer', 'radicado:leer'],
   },
   {
     codigo: ROLES.FUNCIONARIO,
     nombre: 'Funcionario',
-    descripcion: 'Tramita los radicados de su dependencia y genera respuestas.',
+    descripcion:
+      'Tramita los radicados de su dependencia y prepara las respuestas; Ventanilla es quien las radica y despacha.',
     permisos: ['radicado:tramitar', 'radicado:responder', 'documento:adjuntar', 'radicado:leer'],
   },
   {

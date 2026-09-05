@@ -475,6 +475,12 @@ posteriormente los registros al sistema.
 -   Cargue de anexos.
 -   Clasificación inicial.
 
+> **Ventanilla única centralizada (desde 2026-09-05):** la radicación —
+> tanto de entrada como de salida— es una función exclusiva del rol
+> `VENTANILLA` (además de `ADMIN`, que la tiene por ser superrol). Ningún
+> otro rol radica directamente, ni siquiera para responder los casos que
+> tramita. Detalle completo y motivación en el capítulo 21.
+
 ## Módulo 2 --- Radicación
 
 -   Consecutivo automático.
@@ -486,6 +492,9 @@ posteriormente los registros al sistema.
 -   Control de números anulados.
 -   Registro de justificación de anulaciones.
 -   Generación de código de barras o QR, opcional.
+
+> **Quién puede radicar (desde 2026-09-05):** solo `VENTANILLA`/`ADMIN` —
+> ver la nota del Módulo 1 y el capítulo 21.
 
 ## Módulo 3 --- Distribución
 
@@ -901,3 +910,71 @@ Ambos campos son opcionales y quedan fijados al momento de radicar —igual
 que el resto del radicado, no se pueden modificar después (regla
 append-only, capítulo 4)—, y se muestran en el detalle del radicado junto
 con la firma.
+
+# 21. Historial de cambios de alcance
+
+> A partir de esta fecha, los cambios de alcance pedidos después de la
+> entrega inicial (fases F0–F6) se registran aquí como una bitácora
+> histórica: cada entrada queda fija una vez escrita, y un cambio
+> posterior se agrega como entrada nueva, nunca reemplazando ni borrando
+> una anterior. El resto del documento (capítulos 1 a 20) se sigue
+> actualizando para reflejar el comportamiento vigente del sistema —con
+> una nota corta que remite aquí cuando un cambio de esta bitácora lo
+> modifica—, pero el porqué y el cómo de cada decisión queda registrado
+> en este capítulo, igual que la bitácora de radicados del propio sistema
+> (capítulo 4) conserva el rastro de lo que pasó y por qué.
+
+## 21.1 2026-09-05 — Ventanilla única centralizada
+
+**Solicitado por:** el área (petición trasladada al desarrollador).
+
+**Petición original (resumen):**
+1. Los usuarios que no sean ADMIN o VENTANILLA (ventanilla única) no
+   deben poder radicar.
+2. Los demás roles solo deben ver la documentación que se les asigne,
+   nada más.
+3. El método de trabajo a implementar es ventanilla única para toda la
+   empresa: centralizar la radicación en un solo punto, que luego hace
+   llegar la documentación a los demás.
+
+**Validado antes de implementar** (con el solicitante, punto por punto):
+
+| Punto a definir | Decisión |
+|---|---|
+| Alcance de "lo asignado" | Por dependencia: FUNCIONARIO y JEFE ven todos los radicados asignados a **su dependencia**, no solo lo asignado a su usuario individual — así el jefe puede repartir el trabajo entre su equipo y cada funcionario ve el contexto de su área. |
+| ARCHIVISTA y AUDITOR | Exentos de la restricción de visibilidad — necesitan ver todas las dependencias para poder clasificar lo sin asignar (ARCHIVISTA) y auditar (AUDITOR). |
+| RADICADOR | También exento de la restricción de visibilidad, por ser función transversal (anula radicados y coordina el consecutivo de cualquier dependencia) — pero sí pierde la capacidad de radicar directamente, igual que FUNCIONARIO y JEFE. |
+| Radicados de salida (respuestas) | También se centralizan en Ventanilla — un funcionario ya no genera él mismo el radicado de salida al responder un caso; le hace llegar el documento de respuesta a Ventanilla para que lo radique y despache. Es el modelo de ventanilla única completo, no solo para la entrada. |
+| Alcance del detalle | La restricción aplica también al abrir el detalle de un radicado directamente (no solo al listado) — de lo contrario, alguien podría ver el contenido de un radicado ajeno con solo conocer o adivinar el número. |
+
+**Implementado:**
+- Backend (`apps/api/src/radicacion/`): `POST /radicados` y
+  `POST /radicados/adjuntos` exigen ahora rol `VENTANILLA` (antes:
+  VENTANILLA, FUNCIONARIO, RADICADOR, JEFE); `ADMIN` conserva acceso por
+  ser superrol. `GET /radicados`, `GET /radicados/:numero`,
+  `GET /radicados/:numero/trazabilidad` y la descarga de anexos filtran
+  automáticamente por la dependencia del usuario autenticado cuando su
+  rol no tiene visibilidad total (ignoran cualquier `dependenciaId` que
+  el cliente intente forzar por query); si el usuario no tiene
+  dependencia asignada, no ve ningún radicado.
+- Frontend (`apps/web/src`): el enlace "Radicar" del menú y la ruta
+  `/radicar` quedan restringidos a VENTANILLA/ADMIN (redirige si alguien
+  más intenta entrar por URL directa). La página de Consulta muestra un
+  aviso ("solo se muestran los radicados de tu dependencia") a quien no
+  tiene visibilidad total.
+- Verificado con usuarios de prueba en dos dependencias distintas:
+  radicar como FUNCIONARIO/JEFE/RADICADOR devuelve 403; un funcionario de
+  la dependencia A no ve, ni puede abrir por URL directa, el detalle de
+  un radicado de la dependencia B (403 aunque conozca el número exacto);
+  VENTANILLA/ARCHIVISTA/AUDITOR/RADICADOR siguen viendo todo.
+
+**Fuera del alcance de esta petición, sin definir todavía:**
+- El mecanismo exacto para que un funcionario "entregue" su respuesta a
+  Ventanilla no cambió: Ventanilla usa el mismo formulario de Radicar con
+  tipo Salida, y el funcionario le hace llegar el documento por fuera del
+  sistema, igual que hoy le llega un documento físico a la ventanilla. Si
+  el área quiere un flujo formal dentro del sistema (p. ej. que el
+  funcionario "envíe a radicar" un borrador desde la aplicación), es un
+  requerimiento nuevo a definir y validar aparte.
+- El permiso de RADICADOR para anular radicados de cualquier dependencia
+  no se tocó — sigue igual que antes de este cambio.

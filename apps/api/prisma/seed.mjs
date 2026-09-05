@@ -10,8 +10,8 @@ const prisma = new PrismaClient();
 const CATALOGO_ROLES = [
   ['ADMIN', 'Administrador', 'Configuración del sistema, usuarios, roles y parámetros.', ['*']],
   ['RADICADOR', 'Coordinador de correspondencia', 'Configura el consecutivo y el rango de contingencia; anula radicados con justificación.', ['radicado:anular', 'consecutivo:configurar']],
-  ['VENTANILLA', 'Ventanilla única', 'Recepción y radicación de entrada, digitalización, registro de terceros.', ['recepcion:crear', 'radicado:crear', 'tercero:crear']],
-  ['FUNCIONARIO', 'Funcionario', 'Tramita los radicados de su dependencia y genera respuestas.', ['radicado:tramitar', 'radicado:responder']],
+  ['VENTANILLA', 'Ventanilla única', 'Recepción, digitalización y registro de terceros; único rol que radica (entrada y salida) — centraliza la radicación de toda la empresa.', ['recepcion:crear', 'radicado:crear', 'tercero:crear']],
+  ['FUNCIONARIO', 'Funcionario', 'Tramita los radicados de su dependencia y prepara las respuestas; Ventanilla es quien las radica y despacha.', ['radicado:tramitar', 'radicado:responder']],
   ['JEFE', 'Jefe de dependencia', 'Asigna y reasigna trámites, aprueba respuestas, ve indicadores del área.', ['radicado:asignar', 'radicado:aprobar', 'indicador:leer']],
   ['ARCHIVISTA', 'Archivista', 'Series, subseries, TRD, expedientes, transferencias y disposición final.', ['trd:gestionar', 'expediente:gestionar']],
   ['AUDITOR', 'Auditor', 'Lectura total de la bitácora y la trazabilidad; verificación de la cadena.', ['bitacora:leer', 'bitacora:verificar']],

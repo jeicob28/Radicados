@@ -25,7 +25,9 @@ import Dependencias from './pages/admin/Dependencias';
 
 const NAV = [
   { to: '/', label: 'Panel', icon: '▤', roles: [] as string[] },
-  { to: '/radicar', label: 'Radicar', icon: '＋', roles: ['VENTANILLA', 'FUNCIONARIO', 'RADICADOR', 'JEFE'] },
+  // Ventanilla única: solo VENTANILLA radica (ADMIN siempre puede, es
+  // superrol — ver tieneRol en auth.tsx), tanto entrada como salida.
+  { to: '/radicar', label: 'Radicar', icon: '＋', roles: ['VENTANILLA'] },
   { to: '/consulta', label: 'Consulta', icon: '⌕', roles: [] },
   { to: '/bandeja', label: 'Mi bandeja', icon: '☰', roles: ['FUNCIONARIO', 'JEFE'] },
   { to: '/expedientes', label: 'Expedientes', icon: '▦', roles: [] },
@@ -95,6 +97,12 @@ function SoloAdmin({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function SoloVentanilla({ children }: { children: React.ReactNode }) {
+  const { tieneRol } = useAuth();
+  if (!tieneRol('VENTANILLA')) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
 function Privado() {
   const { usuario, cargando } = useAuth();
   if (cargando) return <div className="loading">Cargando…</div>;
@@ -104,7 +112,7 @@ function Privado() {
     <Layout>
       <Routes>
         <Route path="/" element={<Dashboard />} />
-        <Route path="/radicar" element={<Radicar />} />
+        <Route path="/radicar" element={<SoloVentanilla><Radicar /></SoloVentanilla>} />
         <Route path="/consulta" element={<Consulta />} />
         <Route path="/radicados/:numero" element={<RadicadoDetalle />} />
         <Route path="/bandeja" element={<Bandeja />} />

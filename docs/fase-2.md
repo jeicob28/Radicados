@@ -80,3 +80,43 @@ Compose local, y creación de un radicado vía API con `fechaRecepcion` y
 ✓ adjunto multipart con checksum SHA-256; descarga auditada
 ✓ cadena de bitácora intacta
 ```
+
+## Adenda (2026-09-05) — Ventanilla única centralizada
+
+Petición de negocio validada y documentada en Requerimientos §21.1. Sin
+migración de base de datos — solo permisos y filtrado de lectura.
+
+- `radicacion.controller.ts`: `POST /radicados` y `POST /radicados/adjuntos`
+  pasan de `@Roles(VENTANILLA, FUNCIONARIO, RADICADOR, JEFE)` a
+  `@Roles(VENTANILLA)` (`ADMIN` sigue con acceso por superrol vía
+  `RolesGuard`). Aplica igual a entrada y a salida (respuestas) — antes un
+  `FUNCIONARIO`/`JEFE` podía generar él mismo el radicado de salida al
+  responder; ahora eso también pasa por Ventanilla.
+- `radicacion.service.ts`: nuevo `ROLES_VISIBILIDAD_TOTAL` = `ADMIN`,
+  `VENTANILLA`, `ARCHIVISTA`, `AUDITOR`, `RADICADOR` — quien no tenga
+  ninguno de esos roles solo ve radicados de **su propia dependencia**
+  (`usuario.dependenciaId`, tomado del JWT, nunca del query del cliente).
+  Aplica en `listar()` (fuerza `where.dependenciaId`, ignora cualquier
+  `dependenciaId` recibido por query; sin dependencia asignada → resultado
+  vacío) y en `obtener()` (lanza `ForbiddenException` si el radicado es de
+  otra dependencia), de donde heredan el mismo control `trazabilidad()` y
+  la descarga de anexos (ambos llaman a `obtener()` internamente). Las
+  llamadas internas del propio servicio tras `radicar()`/`anular()` pasan
+  `usuario` sin definir a propósito, para que el actor siempre vea el
+  registro que él mismo acaba de crear/modificar sin que la dependencia
+  se lo bloquee.
+- Frontend: `/radicar` (nav + ruta, con redirección — nuevo `SoloVentanilla`
+  en `App.tsx`, mismo patrón que `SoloAdmin`) restringido a
+  VENTANILLA/ADMIN; `Consulta.tsx` muestra un aviso de alcance a quien no
+  tiene visibilidad total. `/bandeja` (asignación personal por
+  `funcionarioId`) no cambia — es un filtro distinto, ya existente.
+
+Verificado con 5 usuarios de prueba (VENTANILLA y RADICADOR en una
+dependencia, dos FUNCIONARIO en dependencias distintas, un JEFE) contra la
+API real: radicar como FUNCIONARIO/JEFE/RADICADOR → 403; listado de un
+FUNCIONARIO no incluye radicados de otra dependencia ni aunque se fuerce
+`?dependenciaId=` de la otra por query; `GET /radicados/:numero` y
+`/trazabilidad` de un radicado ajeno → 403 con mensaje explícito; VENTANILLA
+y RADICADOR (visibilidad total) sí ven radicados de ambas dependencias.
+Build de API (`tsc --noEmit`) y de `web` (`vite build`) limpios, Jest de la
+API en verde.
