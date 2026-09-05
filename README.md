@@ -94,3 +94,42 @@ compose.yml · compose.dev.yml · compose.prod.yml
 | Contingencia | `contingencia/{incorporar,conciliacion}` |
 | Ciclo de vida | `transferencias` (`:n/{enviar,recibir,inventario}`) · `disposicion-final` (`:n/{aprobar,rechazar,ejecutar}`) |
 | Auditoría | `bitacora` `bitacora/verificacion` `bitacora/exportar` |
+
+## Historia del proyecto
+
+Nació de un documento de requerimientos alineado al **Acuerdo 001 de 2024 del
+AGN** y se construyó de cero a producción en **fases (F0–F6)**, cada una
+verificada de punta a punta en contenedores antes de pasar a la siguiente: el
+andamiaje y el `compose`, luego la identidad + RBAC + la bitácora con hash
+encadenado, después el núcleo de radicación (consecutivo en transacción
+`SERIALIZABLE`, radicados *append-only* por triggers de PostgreSQL), y sobre eso
+la distribución con semáforo de cumplimiento, la TRD y los expedientes
+electrónicos, los reportes en XLSX, la captura de correo, el plan de
+contingencia, y por último las transferencias, la disposición final con doble
+aprobación y el MFA.
+
+Ya con el sistema desplegado empezaron los ajustes pedidos desde la operación
+real, que quedan registrados como bitácora en
+[`Requerimientos_…md`](Requerimientos_Sistema_Radicacion_Gestion_Documental_Colombia.md)
+(cap. 19–21) y en las adendas de `docs/`:
+
+- **Módulos de usuarios y dependencias** — gestión de contraseñas, política de
+  caducidad, organigrama con su personal.
+- **Captura por cámara y firma en la recepción** — foto desde el móvil o webcam
+  del PC, y un lienzo de firma para quien entrega un documento en ventanilla.
+  Esto obligó a servir la app por **HTTPS** (certificado autofirmado, es una
+  intranet) para habilitar la cámara en toda la red.
+- **Ventanilla única centralizada** — la radicación (entrada y salida) pasa a ser
+  función exclusiva de un solo rol, y cada dependencia solo ve su propia
+  documentación.
+
+En el camino se encontraron y corrigieron problemas reales de infraestructura y
+de UI —un 502 por IPs de upstream cacheadas en nginx tras cada redeploy, una
+firma que “se borraba” al soltar el mouse por un desajuste de coordenadas del
+canvas más un click fantasma del navegador— siempre verificando el arreglo con
+pruebas reales (navegador *headless*, `curl` contra la API) antes de darlo por
+cerrado.
+
+El desarrollo se hizo con **Claude Code** como copiloto: acelerando la escritura
+de código, la documentación y los despliegues, pero con cada entrega comprobada
+con pruebas reales antes de pasar a producción.

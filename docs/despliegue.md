@@ -38,8 +38,9 @@ sed -i "s|^TLS_HOST=.*|TLS_HOST=SERVIDOR|" .env   # IP o nombre por el que entra
 
 > `DATABASE_URL` debe llevar la misma contraseña que `POSTGRES_PASSWORD`.
 > `TLS_HOST` debe ser la IP o el nombre exacto por el que el personal escribirá la
-> dirección (p. ej. `192.168.0.105`) — entra en el certificado autofirmado; si no
-> coincide, el navegador marcará error de nombre además de "no confiable".
+> dirección (p. ej. `192.168.1.50` o `sgdea.empresa.local`) — entra en el
+> certificado autofirmado; si no coincide, el navegador marcará error de nombre
+> además de "no confiable".
 
 ## 4. Levantar
 
