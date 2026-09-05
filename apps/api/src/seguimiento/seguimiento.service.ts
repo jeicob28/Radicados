@@ -11,7 +11,16 @@ import { DiasHabilesService } from '../common/dias-habiles.service';
 import type { AuditCtx, UsuarioActual } from '../auth/decorators';
 import { ROLES } from '../auth/roles';
 import { alcanceDependencia } from '../common/visibilidad-radicados';
-import { AsignarDto, MotivoDto, ReasignarDto, TrasladarDto } from './dto';
+import { adjuntarComoAnexos } from '../common/anexos.util';
+import {
+  AsignarDto,
+  ComunicadoOficialDto,
+  MotivoDto,
+  ObservacionDto,
+  ReasignarDto,
+  ResponderDto,
+  TrasladarDto,
+} from './dto';
 
 const ABIERTOS: EstadoRadicado[] = [
   EstadoRadicado.RADICADO,
@@ -45,6 +54,33 @@ export class SeguimientoService {
     return (a._max.secuencia ?? 0) + 1;
   }
 
+  /** Notifica a todos los usuarios activos que tienen el rol indicado. */
+  private async notificarRol(
+    rol: string,
+    tipo: string,
+    titulo: string,
+    cuerpo: string | undefined,
+    radicadoNumero: string,
+  ) {
+    const usuarios = await this.prisma.usuario.findMany({
+      where: { activo: true, roles: { has: rol } },
+      select: { id: true },
+    });
+    if (!usuarios.length) return;
+    await this.prisma.notificacion
+      .createMany({
+        data: usuarios.map((u) => ({
+          usuarioId: u.id,
+          tipo,
+          titulo,
+          cuerpo: cuerpo ?? null,
+          radicadoNumero,
+        })),
+        skipDuplicates: true,
+      })
+      .catch(() => undefined);
+  }
+
   async asignar(numero: string, dto: AsignarDto, ctx: AuditCtx) {
     const r = await this.cargar(numero);
     if (!['RADICADO', 'CLASIFICADO', 'REABIERTO'].includes(r.estado)) {
@@ -71,6 +107,7 @@ export class SeguimientoService {
           datos: { dependenciaId: dto.dependenciaId, funcionarioId: dto.funcionarioId ?? null },
         },
       });
+      await adjuntarComoAnexos(tx, r.id, dto.adjuntos, 'Soporte de la asignación');
       return tx.radicado.update({
         where: { id: r.id },
         data: {
@@ -91,7 +128,7 @@ export class SeguimientoService {
     return actualizado;
   }
 
-  async aceptar(numero: string, ctx: AuditCtx) {
+  async aceptar(numero: string, dto: ObservacionDto, ctx: AuditCtx) {
     const r = await this.cargar(numero);
     if (r.estado !== 'ASIGNADO') {
       throw new BadRequestException('Solo se acepta un radicado en estado ASIGNADO');
@@ -116,9 +153,10 @@ export class SeguimientoService {
           estadoNuevo: 'EN_TRAMITE',
           actorId: ctx.usuario?.id ?? null,
           ip: ctx.ip ?? null,
-          observacion: 'Recibido y en trámite',
+          observacion: dto.observacion ? `Recibido y en trámite. ${dto.observacion}` : 'Recibido y en trámite',
         },
       });
+      await adjuntarComoAnexos(tx, r.id, dto.adjuntos, 'Soporte al aceptar el trámite');
       return tx.radicado.update({
         where: { id: r.id },
         data: {
@@ -157,6 +195,7 @@ export class SeguimientoService {
           datos: { origen: r.dependenciaId, destino: dto.dependenciaId },
         },
       });
+      await adjuntarComoAnexos(tx, r.id, dto.adjuntos, 'Soporte del traslado');
       return tx.radicado.update({
         where: { id: r.id },
         data: {
@@ -197,6 +236,7 @@ export class SeguimientoService {
           datos: { de: r.funcionarioId, a: dto.funcionarioId },
         },
       });
+      await adjuntarComoAnexos(tx, r.id, dto.adjuntos, 'Soporte de la reasignación');
       return tx.radicado.update({
         where: { id: r.id },
         data: { funcionarioId: dto.funcionarioId },
@@ -229,6 +269,7 @@ export class SeguimientoService {
           observacion: `Devuelto: ${dto.motivo}`,
         },
       });
+      await adjuntarComoAnexos(tx, r.id, dto.adjuntos, 'Soporte de la devolución');
       return tx.radicado.update({
         where: { id: r.id },
         data: { estado: 'RADICADO', funcionarioId: null },
@@ -241,7 +282,7 @@ export class SeguimientoService {
     return actualizado;
   }
 
-  async cerrar(numero: string, dto: { observacion?: string }, ctx: AuditCtx) {
+  async cerrar(numero: string, dto: ObservacionDto, ctx: AuditCtx) {
     const r = await this.cargar(numero);
     const puede =
       r.estado === 'RESPONDIDO' ||
@@ -264,6 +305,7 @@ export class SeguimientoService {
           observacion: dto.observacion ?? 'Trámite cerrado',
         },
       });
+      await adjuntarComoAnexos(tx, r.id, dto.adjuntos, 'Soporte del cierre');
       return tx.radicado.update({
         where: { id: r.id },
         data: { estado: 'CERRADO', fechaCierre: new Date(), nivelAlerta: 'NA', diasHabilesRestantes: null },
@@ -272,6 +314,152 @@ export class SeguimientoService {
     await this.bitacora.registrar({
       ctx, entidad: 'radicado', entidadId: r.id, accion: 'CAMBIAR_ESTADO',
       antes: { estado: r.estado }, despues: { estado: 'CERRADO' },
+    });
+    return actualizado;
+  }
+
+  /**
+   * El funcionario responde el radicado de entrada. Ver Requerimientos §21.2.
+   *  - variante DIRECTA: ya respondió al solicitante → el radicado se CIERRA
+   *    y Ventanilla Única recibe una notificación informativa.
+   *  - variante COMUNICADO_OFICIAL: el radicado pasa a POR_COMUNICAR y le
+   *    llega a Ventanilla como tarea para emitir el comunicado oficial.
+   * En ninguno de los dos casos se genera un consecutivo de salida: la
+   * respuesta se archiva sobre el mismo radicado de entrada.
+   */
+  async responder(numero: string, dto: ResponderDto, ctx: AuditCtx) {
+    const r = await this.cargar(numero);
+    if (r.estado !== 'EN_TRAMITE') {
+      throw new BadRequestException(
+        `Para responder, el radicado debe estar EN_TRAMITE (estado actual: ${r.estado}). ` +
+          'Acepte primero el trámite.',
+      );
+    }
+    if (
+      r.funcionarioId &&
+      ctx.usuario &&
+      r.funcionarioId !== ctx.usuario.id &&
+      !ctx.usuario.roles.includes(ROLES.JEFE) &&
+      !ctx.usuario.roles.includes(ROLES.ADMIN)
+    ) {
+      throw new ForbiddenException('El radicado está asignado a otro funcionario');
+    }
+
+    const directa = dto.variante === 'DIRECTA';
+    const estadoNuevo = directa ? 'CERRADO' : 'POR_COMUNICAR';
+    const ahora = new Date();
+
+    const actualizado = await this.prisma.$transaction(async (tx) => {
+      await tx.eventoTramite.create({
+        data: {
+          radicadoId: r.id,
+          secuencia: await this.proximaSecuencia(tx, r.id),
+          tipoEvento: directa ? 'CERRADO' : 'RESPUESTA_GENERADA',
+          estadoAnterior: r.estado,
+          estadoNuevo,
+          actorId: ctx.usuario?.id ?? null,
+          ip: ctx.ip ?? null,
+          observacion:
+            (directa
+              ? `Respuesta directa (${dto.medioRespuesta}). `
+              : `Respuesta lista, requiere comunicado oficial (${dto.medioRespuesta}). `) + dto.notas,
+        },
+      });
+      await adjuntarComoAnexos(tx, r.id, dto.adjuntos, 'Evidencia de la respuesta');
+      return tx.radicado.update({
+        where: { id: r.id },
+        data: {
+          estado: estadoNuevo,
+          medioRespuesta: dto.medioRespuesta,
+          fechaPrimeraRespuesta: r.fechaPrimeraRespuesta ?? ahora,
+          ...(directa
+            ? { fechaCierre: ahora, nivelAlerta: 'NA', diasHabilesRestantes: null }
+            : {}),
+        },
+      });
+    });
+
+    if (directa) {
+      await this.notificarRol(
+        ROLES.VENTANILLA,
+        'RADICADO_CERRADO',
+        `Radicado ${numero} cerrado con respuesta directa`,
+        dto.notas,
+        numero,
+      );
+    } else {
+      await this.notificarRol(
+        ROLES.VENTANILLA,
+        'COMUNICADO_PENDIENTE',
+        `Preparar comunicado oficial — radicado ${numero}`,
+        dto.notas,
+        numero,
+      );
+    }
+
+    await this.bitacora.registrar({
+      ctx,
+      entidad: 'radicado',
+      entidadId: r.id,
+      accion: 'RESPONDER',
+      antes: { estado: r.estado },
+      despues: { estado: estadoNuevo, variante: dto.variante, medioRespuesta: dto.medioRespuesta },
+      observacion: dto.notas,
+    });
+    return actualizado;
+  }
+
+  /**
+   * Ventanilla Única emite el comunicado oficial de respuesta y cierra el
+   * radicado. Solo aplica a radicados en estado POR_COMUNICAR.
+   */
+  async emitirComunicado(numero: string, dto: ComunicadoOficialDto, ctx: AuditCtx) {
+    const r = await this.cargar(numero);
+    if (r.estado !== 'POR_COMUNICAR') {
+      throw new BadRequestException(
+        `El radicado no está a la espera de comunicado oficial (estado actual: ${r.estado})`,
+      );
+    }
+    const ahora = new Date();
+    const actualizado = await this.prisma.$transaction(async (tx) => {
+      await tx.eventoTramite.create({
+        data: {
+          radicadoId: r.id,
+          secuencia: await this.proximaSecuencia(tx, r.id),
+          tipoEvento: 'CERRADO',
+          estadoAnterior: r.estado,
+          estadoNuevo: 'CERRADO',
+          actorId: ctx.usuario?.id ?? null,
+          ip: ctx.ip ?? null,
+          observacion: dto.observacion
+            ? `Comunicado oficial emitido. ${dto.observacion}`
+            : 'Comunicado oficial emitido.',
+        },
+      });
+      await adjuntarComoAnexos(tx, r.id, dto.adjuntos, 'Comunicado oficial');
+      return tx.radicado.update({
+        where: { id: r.id },
+        data: { estado: 'CERRADO', fechaCierre: ahora, nivelAlerta: 'NA', diasHabilesRestantes: null },
+      });
+    });
+
+    if (r.funcionarioId) {
+      await this.notificar(
+        r.funcionarioId,
+        'RADICADO_CERRADO',
+        `Comunicado oficial emitido — radicado ${numero} cerrado`,
+        dto.observacion,
+        numero,
+      );
+    }
+    await this.bitacora.registrar({
+      ctx,
+      entidad: 'radicado',
+      entidadId: r.id,
+      accion: 'CAMBIAR_ESTADO',
+      antes: { estado: r.estado },
+      despues: { estado: 'CERRADO' },
+      observacion: 'Comunicado oficial emitido',
     });
     return actualizado;
   }
@@ -294,6 +482,7 @@ export class SeguimientoService {
           observacion: dto.motivo,
         },
       });
+      await adjuntarComoAnexos(tx, r.id, dto.adjuntos, 'Soporte de la reapertura');
       return tx.radicado.update({
         where: { id: r.id },
         data: { estado: 'EN_TRAMITE', fechaCierre: null },

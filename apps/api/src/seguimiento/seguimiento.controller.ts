@@ -2,7 +2,15 @@ import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SeguimientoService } from './seguimiento.service';
 import { AlertasService } from './alertas.service';
-import { AsignarDto, MotivoDto, ObservacionDto, ReasignarDto, TrasladarDto } from './dto';
+import {
+  AsignarDto,
+  ComunicadoOficialDto,
+  MotivoDto,
+  ObservacionDto,
+  ReasignarDto,
+  ResponderDto,
+  TrasladarDto,
+} from './dto';
 import { Auditoria, CurrentUser, Roles } from '../auth/decorators';
 import type { AuditCtx, UsuarioActual } from '../auth/decorators';
 import { ROLES } from '../auth/roles';
@@ -26,8 +34,12 @@ export class SeguimientoController {
   @Post('radicados/:numero/aceptar')
   @Roles(ROLES.FUNCIONARIO, ROLES.JEFE)
   @ApiOperation({ summary: 'El funcionario acepta el trámite (pasa a EN_TRAMITE)' })
-  aceptar(@Param('numero') numero: string, @Auditoria() ctx: AuditCtx) {
-    return this.seguimiento.aceptar(numero, ctx);
+  aceptar(
+    @Param('numero') numero: string,
+    @Body() dto: ObservacionDto,
+    @Auditoria() ctx: AuditCtx,
+  ) {
+    return this.seguimiento.aceptar(numero, dto, ctx);
   }
 
   @Post('radicados/:numero/trasladar')
@@ -52,6 +64,30 @@ export class SeguimientoController {
   @Roles(ROLES.FUNCIONARIO, ROLES.JEFE)
   cerrar(@Param('numero') numero: string, @Body() dto: ObservacionDto, @Auditoria() ctx: AuditCtx) {
     return this.seguimiento.cerrar(numero, dto, ctx);
+  }
+
+  @Post('radicados/:numero/responder')
+  @Roles(ROLES.FUNCIONARIO, ROLES.JEFE)
+  @ApiOperation({
+    summary:
+      'El funcionario responde el radicado: elige la forma de responder, adjunta evidencias y ' +
+      'la variante (DIRECTA = cierra; COMUNICADO_OFICIAL = pasa a Ventanilla Única).',
+  })
+  responder(@Param('numero') numero: string, @Body() dto: ResponderDto, @Auditoria() ctx: AuditCtx) {
+    return this.seguimiento.responder(numero, dto, ctx);
+  }
+
+  @Post('radicados/:numero/comunicado-oficial')
+  @Roles(ROLES.VENTANILLA)
+  @ApiOperation({
+    summary: 'Ventanilla Única emite el comunicado oficial de respuesta y cierra el radicado (estado POR_COMUNICAR).',
+  })
+  emitirComunicado(
+    @Param('numero') numero: string,
+    @Body() dto: ComunicadoOficialDto,
+    @Auditoria() ctx: AuditCtx,
+  ) {
+    return this.seguimiento.emitirComunicado(numero, dto, ctx);
   }
 
   @Post('radicados/:numero/reabrir')

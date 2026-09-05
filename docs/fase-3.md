@@ -40,3 +40,51 @@ Al entrar en `ROJO`/`VENCIDO` genera una **notificación** para el funcionario r
 ✓ filtro vencimientos?nivel=ROJO
 ✓ cadena de bitácora intacta
 ```
+
+## Adenda (2026-09-05) — Trámite del funcionario: notas, evidencias y respuesta en dos variantes
+
+Petición de negocio validada y documentada en Requerimientos §21.2.
+Migración `20260910000000_respuesta_tramite` (`ALTER TYPE "EstadoRadicado" ADD VALUE 'POR_COMUNICAR'`).
+
+- `POST /radicados/adjuntos-tramite` (FUNCIONARIO/JEFE/VENTANILLA) — sube
+  evidencias/soportes y devuelve descriptores (reutiliza `AdjuntosService`).
+- `POST /radicados/:numero/responder` (FUNCIONARIO/JEFE) — `ResponderDto`:
+  `variante` DIRECTA|COMUNICADO_OFICIAL, `medioRespuesta` (enum), `notas`,
+  `adjuntos` (≥1). Precondición: `EN_TRAMITE` y funcionario asignado (o
+  JEFE/ADMIN). DIRECTA → `CERRADO` + `notificarRol('VENTANILLA', …)`
+  informativa; COMUNICADO_OFICIAL → `POR_COMUNICAR` + tarea a Ventanilla.
+  No genera consecutivo de salida — la respuesta se archiva sobre el
+  radicado de entrada (decisión del área: SAL solo para lo que la empresa
+  origina).
+- `POST /radicados/:numero/comunicado-oficial` (VENTANILLA) — solo desde
+  `POR_COMUNICAR`; adjunta el comunicado, cierra, notifica al funcionario.
+- `devolver` y `trasladar` (`MotivoDto`/`TrasladarDto`) aceptan `adjuntos`
+  opcionales; helper `adjuntarSoporte(tx, radicadoId, adjuntos, descripcion)`
+  crea los `Anexo`. Nuevo helper `notificarRol(rol, …)`.
+- `bitacora.service`: nueva acción `RESPONDER`.
+- Frontend `RadicadoDetalle.tsx`: `ResponderModal` y `ComunicadoModal`
+  dedicados (fuera del `AccionModal` genérico), helper `subirEvidencias()`
+  y componente `CampoEvidencias`; acciones nuevas `responder`, `devolver`,
+  `comunicado`; fila "Forma de respuesta"; `POR_COMUNICAR` en `EstadoPill`
+  y en el filtro de `Consulta`.
+
+Verificado contra la API real con usuarios de prueba en la dependencia
+Administración: responder DIRECTA (→ CERRADO, 1 evidencia, notificación
+`RADICADO_CERRADO` a Ventanilla), responder COMUNICADO_OFICIAL (→
+POR_COMUNICAR, notificación `COMUNICADO_PENDIENTE`), funcionario intenta
+`comunicado-oficial` → 403, Ventanilla lo emite (→ CERRADO, comunicado
+adjunto, notificación al funcionario), devolver con evidencia (→ RADICADO,
+"Soporte de la devolución"). Jest 8/8, builds limpios.
+
+### Complemento (2026-09-05) — evidencias en todas las acciones
+
+`adjuntarComoAnexos()` movido a `apps/api/src/common/anexos.util.ts`.
+Base `AccionConEvidenciasDto` (campo `adjuntos?` opcional) de la que
+extienden `AsignarDto`, `TrasladarDto`, `ReasignarDto`, `MotivoDto`
+(devolver/reabrir) y `ObservacionDto` (cerrar/aceptar); `aceptar` pasa a
+recibir `@Body() ObservacionDto`. `AnularRadicadoDto` y
+`ClasificarRadicadoDto` también aceptan `adjuntos?` (insertados fuera del
+`fn_anular_radicado` en el primer caso, dentro de la tx de clasificación
+en el segundo). Frontend: `AccionModal` muestra siempre `CampoEvidencias`
+y adjunta si hay archivos. Verificado: asignar + aceptar + cerrar con
+evidencia → 3 anexos con su descripción respectiva.

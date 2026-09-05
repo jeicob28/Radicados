@@ -1,12 +1,16 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
+  IsArray,
   IsEnum,
   IsInt,
   IsOptional,
   IsString,
   Min,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
+import { AdjuntoRefDto } from '../radicacion/dto';
 
 export const DISPOSICIONES = [
   'CONSERVACION_TOTAL',
@@ -78,6 +82,13 @@ export class ClasificarRadicadoDto {
   @IsOptional()
   @IsString()
   nuevoExpedienteTitulo?: string;
+
+  @ApiPropertyOptional({ type: [AdjuntoRefDto], description: 'Evidencias / documentos de soporte' })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AdjuntoRefDto)
+  adjuntos?: AdjuntoRefDto[];
 }
 
 export class IncorporarDocumentoDto {

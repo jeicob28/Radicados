@@ -43,7 +43,24 @@ export class RadicacionController {
   @ApiOperation({ summary: 'Sube uno o varios archivos y devuelve sus descriptores (con checksum)' })
   @UseInterceptors(FilesInterceptor('files', 20))
   async subirAdjuntos(@UploadedFiles() files: Express.Multer.File[]) {
-    const descriptores = await Promise.all(
+    return { adjuntos: await this.recibirArchivos(files) };
+  }
+
+  @Post('adjuntos-tramite')
+  @Roles(ROLES.FUNCIONARIO, ROLES.JEFE, ROLES.VENTANILLA)
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary:
+      'Sube evidencias/soportes para una acción de trámite (responder, devolver, trasladar, comunicado oficial) ' +
+      'y devuelve sus descriptores para incluirlos en la acción.',
+  })
+  @UseInterceptors(FilesInterceptor('files', 20))
+  async subirAdjuntosTramite(@UploadedFiles() files: Express.Multer.File[]) {
+    return { adjuntos: await this.recibirArchivos(files) };
+  }
+
+  private recibirArchivos(files: Express.Multer.File[]) {
+    return Promise.all(
       (files ?? []).map((f) =>
         this.adjuntos.recibir({
           originalname: f.originalname,
@@ -53,7 +70,6 @@ export class RadicacionController {
         }),
       ),
     );
-    return { adjuntos: descriptores };
   }
 
   @Post()

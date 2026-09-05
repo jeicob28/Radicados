@@ -125,6 +125,13 @@ export class AnularRadicadoDto {
   @IsString()
   @MinLength(10, { message: 'La anulación exige una justificación' })
   justificacion!: string;
+
+  @ApiPropertyOptional({ type: [AdjuntoRefDto], description: 'Evidencias / documentos de soporte' })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AdjuntoRefDto)
+  adjuntos?: AdjuntoRefDto[];
 }
 
 export class ActualizarConsecutivoDto {

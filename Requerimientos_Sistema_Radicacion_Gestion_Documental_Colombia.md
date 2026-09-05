@@ -989,3 +989,74 @@ a iniciar sesión para que el cambio surta efecto de inmediato.
   requerimiento nuevo a definir y validar aparte.
 - El permiso de RADICADOR para anular radicados de cualquier dependencia
   no se tocó — sigue igual que antes de este cambio.
+
+## 21.2 2026-09-05 — Trámite del funcionario: notas, evidencias y respuesta en dos variantes
+
+**Solicitado por:** el área (continuación del flujo de la §21.1).
+
+**Petición original (resumen):** cuando el funcionario acepta un radicado
+y luego lo termina y debe devolverlo, trasladarlo (escalar a otra
+dependencia) o responderlo, debe poder registrar las notas, las
+evidencias y demás soportes. Para **responder** hay dos variantes: (1) que
+responda directamente al solicitante, o (2) que la respuesta salga como
+**comunicado oficial de Ventanilla Única**. En cualquiera de las dos se
+elige la forma de responder, se adjuntan las evidencias y se le notifica a
+Ventanilla Única que el radicado se cerró.
+
+**Validado antes de implementar** (con el solicitante, punto por punto):
+
+| Punto a definir | Decisión |
+|---|---|
+| Qué es "escalar" | Es lo mismo que **Trasladar** a otra dependencia — no se crea una acción nueva. |
+| Variante 1 (respuesta directa) — ¿genera consecutivo de salida? | **No.** El funcionario registra que respondió (por el medio que sea), adjunta la evidencia de lo enviado, y el radicado se cierra. El consecutivo de **salida** queda reservado para los documentos que la empresa **genera por iniciativa propia**; las respuestas a un radicado de entrada se archivan sobre ese mismo radicado, con el número con el que ingresó. |
+| Variante 2 (comunicado oficial) — ¿genera consecutivo de salida? | Tampoco. El comunicado oficial se adjunta al mismo radicado de entrada. |
+| ¿Quién elige la variante? | El **funcionario**, al momento de responder, caso por caso. |
+| ¿Qué le llega a Ventanilla Única? | Variante 1 → notificación informativa ("radicado X cerrado con respuesta directa"). Variante 2 → tarea pendiente ("preparar comunicado oficial — radicado X") con las notas del funcionario; el radicado queda en estado **POR_COMUNICAR** y solo se cierra cuando Ventanilla emite el comunicado. |
+
+**Implementado:**
+- Estado nuevo `POR_COMUNICAR` (migración `20260910000000_respuesta_tramite`).
+- `POST /radicados/adjuntos-tramite` (FUNCIONARIO/JEFE/VENTANILLA) — sube
+  evidencias/soportes para las acciones de trámite y devuelve sus
+  descriptores (checksum incluido), igual que el de radicar.
+- `POST /radicados/:numero/responder` (FUNCIONARIO/JEFE) — body:
+  `variante` (`DIRECTA` | `COMUNICADO_OFICIAL`), `medioRespuesta`
+  (CORREO_ELECTRONICO / FISICO / TELEFONICO / PRESENCIAL / PORTAL_WEB /
+  OTRO), `notas` (obligatorias), `adjuntos` (al menos una evidencia). Solo
+  desde estado `EN_TRAMITE` y por el funcionario asignado (o su jefe).
+  DIRECTA → `CERRADO`; COMUNICADO_OFICIAL → `POR_COMUNICAR`. Notifica a
+  Ventanilla Única según la variante.
+- `POST /radicados/:numero/comunicado-oficial` (VENTANILLA) — adjunta el
+  comunicado y cierra el radicado (`POR_COMUNICAR` → `CERRADO`), notifica
+  al funcionario.
+- `POST /radicados/:numero/devolver` y `.../trasladar` ahora aceptan
+  `adjuntos` opcionales (evidencias/soporte).
+- Frontend (`RadicadoDetalle.tsx`): botón **Responder** (funcionario, si
+  está EN_TRAMITE) con modal de variante + forma de responder + notas +
+  evidencias; botón **Devolver**; botón **Emitir comunicado oficial**
+  (Ventanilla, si está POR_COMUNICAR); campo de evidencias en Trasladar y
+  Devolver; fila "Forma de respuesta" en el detalle; estado
+  `POR_COMUNICAR` en los filtros de Consulta y en el semáforo de estados.
+
+**Verificado:** flujo completo contra la API real con usuarios de prueba
+—responder DIRECTA (→ CERRADO, evidencia adjunta, notificación a
+Ventanilla), responder COMUNICADO_OFICIAL (→ POR_COMUNICAR, tarea a
+Ventanilla), intento del funcionario de emitir el comunicado (403),
+emisión por Ventanilla (→ CERRADO, comunicado adjunto), devolver con
+evidencia—. Build de API (`tsc --noEmit`) y de `web` (`vite build`)
+limpios, Jest de la API en verde.
+
+**Complemento (2026-09-05, tras prueba del área):** las evidencias no se
+limitan a responder/devolver/trasladar — **toda** acción de trámite puede
+acompañarse de evidencias/soporte, sin importar el estado ni la acción:
+asignar, aceptar, trasladar, reasignar, devolver, responder, cerrar,
+reabrir, clasificar y anular aceptan un `adjuntos` opcional. En la
+interfaz, el modal de cada acción incluye siempre el campo "Evidencias /
+soporte" (obligatorio solo en responder y en el comunicado oficial;
+opcional en el resto). Lógica común en
+`apps/api/src/common/anexos.util.ts`.
+
+**Sin definir todavía (fuera de alcance de esta petición):**
+- Si más adelante se quiere que el jefe apruebe la respuesta del
+  funcionario antes de cerrar, o que ciertos tipos de comunicación
+  (p. ej. derechos de petición) obliguen a la variante 2, es un
+  requerimiento nuevo a validar aparte.

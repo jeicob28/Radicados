@@ -357,6 +357,21 @@ export class RadicacionService {
       Prisma.sql`SELECT fn_anular_radicado(${r.id}, ${ctx.usuario?.id ?? null}, ${dto.motivo}, ${dto.justificacion})`,
     );
 
+    if (dto.adjuntos?.length) {
+      await this.prisma.anexo.createMany({
+        data: dto.adjuntos.map((a) => ({
+          radicadoId: r.id,
+          nombre: a.nombre,
+          descripcion: a.descripcion ?? 'Soporte de la anulación',
+          objectKey: a.objectKey,
+          contentType: a.contentType ?? null,
+          tamanoBytes: a.tamanoBytes ?? null,
+          checksumSha256: a.checksumSha256 ?? null,
+          paginas: a.paginas ?? null,
+        })),
+      });
+    }
+
     await this.bitacora.registrar({
       ctx,
       entidad: 'radicado',

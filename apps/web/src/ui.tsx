@@ -39,6 +39,7 @@ const ESTADO_CLS: Record<string, string> = {
   ASIGNADO: 'warn',
   EN_TRAMITE: 'warn',
   RESPONDIDO: 'ok',
+  POR_COMUNICAR: 'warn',
   CERRADO: 'ok',
   REABIERTO: 'warn',
   ANULADO: 'crit',

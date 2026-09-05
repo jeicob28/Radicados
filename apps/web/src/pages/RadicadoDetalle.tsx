@@ -6,6 +6,75 @@ import { Alerta, Boton, Card, EstadoPill, ErrorMsg, Modal, fechaCorta, fechaHora
 
 const NOMBRE_FIRMA = 'firma-recepcion.png';
 
+const MEDIOS_RESPUESTA: [string, string][] = [
+  ['CORREO_ELECTRONICO', 'Correo electrónico'],
+  ['FISICO', 'Físico / impreso'],
+  ['TELEFONICO', 'Telefónico'],
+  ['PRESENCIAL', 'Presencial'],
+  ['PORTAL_WEB', 'Portal web'],
+  ['OTRO', 'Otro'],
+];
+
+interface AdjuntoRef {
+  objectKey: string;
+  nombre: string;
+  contentType?: string;
+  tamanoBytes?: number;
+  checksumSha256?: string;
+}
+
+/** Sube los archivos como evidencias de trámite y devuelve sus descriptores. */
+async function subirEvidencias(files: File[]): Promise<AdjuntoRef[]> {
+  if (!files.length) return [];
+  const fd = new FormData();
+  files.forEach((f) => fd.append('files', f));
+  const res = await api<{ adjuntos: AdjuntoRef[] }>('/radicados/adjuntos-tramite', {
+    method: 'POST',
+    body: fd,
+  });
+  return res.adjuntos;
+}
+
+/** Selector de archivos con lista y opción de quitar, para evidencias. */
+function CampoEvidencias({
+  files,
+  setFiles,
+  label = 'Evidencias',
+  hint,
+}: {
+  files: File[];
+  setFiles: (f: File[]) => void;
+  label?: string;
+  hint?: string;
+}) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      {hint && <em>{hint}</em>}
+      <input
+        type="file"
+        multiple
+        onChange={(e) => {
+          setFiles([...files, ...Array.from(e.target.files ?? [])]);
+          e.target.value = '';
+        }}
+      />
+      {files.length > 0 && (
+        <ul className="anexos">
+          {files.map((f, i) => (
+            <li key={i}>
+              <span>{f.name}</span>
+              <button type="button" className="link" onClick={() => setFiles(files.filter((_, j) => j !== i))}>
+                quitar
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </label>
+  );
+}
+
 interface Evento {
   secuencia: number;
   tipoEvento: string;
@@ -56,6 +125,9 @@ type AccionId =
   | 'aceptar'
   | 'trasladar'
   | 'reasignar'
+  | 'responder'
+  | 'devolver'
+  | 'comunicado'
   | 'cerrar'
   | 'reabrir'
   | 'anular'
@@ -80,8 +152,11 @@ export default function RadicadoDetalle() {
     { id: 'asignar', label: 'Asignar', ok: tieneRol('JEFE', 'VENTANILLA', 'RADICADOR') && ['RADICADO', 'CLASIFICADO', 'REABIERTO'].includes(r.estado) },
     { id: 'clasificar', label: 'Clasificar', ok: tieneRol('ARCHIVISTA', 'VENTANILLA') && !r.expediente && r.estado !== 'ANULADO' },
     { id: 'aceptar', label: 'Aceptar trámite', ok: tieneRol('FUNCIONARIO', 'JEFE') && r.estado === 'ASIGNADO' },
+    { id: 'responder', label: 'Responder', ok: tieneRol('FUNCIONARIO', 'JEFE') && r.estado === 'EN_TRAMITE' },
     { id: 'trasladar', label: 'Trasladar', ok: tieneRol('FUNCIONARIO', 'JEFE') && ['ASIGNADO', 'EN_TRAMITE'].includes(r.estado) },
+    { id: 'devolver', label: 'Devolver', ok: tieneRol('FUNCIONARIO', 'JEFE') && ['ASIGNADO', 'EN_TRAMITE'].includes(r.estado) },
     { id: 'reasignar', label: 'Reasignar', ok: tieneRol('JEFE') && ['ASIGNADO', 'EN_TRAMITE'].includes(r.estado) },
+    { id: 'comunicado', label: 'Emitir comunicado oficial', ok: tieneRol('VENTANILLA') && r.estado === 'POR_COMUNICAR' },
     { id: 'cerrar', label: 'Cerrar', ok: tieneRol('FUNCIONARIO', 'JEFE') && (r.estado === 'RESPONDIDO' || r.estado === 'EN_TRAMITE') },
     { id: 'reabrir', label: 'Reabrir', ok: tieneRol('JEFE') && r.estado === 'CERRADO' },
     { id: 'anular', label: 'Anular', ok: tieneRol('RADICADOR') && r.estado !== 'ANULADO' },
@@ -120,6 +195,12 @@ export default function RadicadoDetalle() {
             <dd>{r.tercero ? `${r.tercero.nombre} · ${r.tercero.numeroDocumento}` : r.destinatario ?? '—'}</dd>
             <dt>Dependencia</dt><dd>{r.dependencia ? `${r.dependencia.codigo} · ${r.dependencia.nombre}` : '—'}</dd>
             <dt>Responsable</dt><dd>{r.funcionario?.nombre ?? '—'}</dd>
+            {r.medioRespuesta && (
+              <>
+                <dt>Forma de respuesta</dt>
+                <dd>{MEDIOS_RESPUESTA.find(([v]) => v === r.medioRespuesta)?.[1] ?? r.medioRespuesta}</dd>
+              </>
+            )}
             <dt>Serie</dt><dd>{r.serie ? `${r.serie.codigo} · ${r.serie.nombre}` : 'sin clasificar'}</dd>
             <dt>Expediente</dt><dd>{r.expediente ? `${r.expediente.numero} · ${r.expediente.titulo}` : '—'}</dd>
           </dl>
@@ -176,7 +257,21 @@ export default function RadicadoDetalle() {
         </ol>
       </Card>
 
-      {accion && (
+      {accion === 'responder' && (
+        <ResponderModal
+          numero={r.numero}
+          onClose={() => setAccion(null)}
+          onDone={() => { setAccion(null); recargar(); }}
+        />
+      )}
+      {accion === 'comunicado' && (
+        <ComunicadoModal
+          numero={r.numero}
+          onClose={() => setAccion(null)}
+          onDone={() => { setAccion(null); recargar(); }}
+        />
+      )}
+      {accion && accion !== 'responder' && accion !== 'comunicado' && (
         <AccionModal
           accion={accion}
           numero={r.numero}
@@ -189,6 +284,163 @@ export default function RadicadoDetalle() {
         />
       )}
     </div>
+  );
+}
+
+function ResponderModal({
+  numero,
+  onClose,
+  onDone,
+}: {
+  numero: string;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [variante, setVariante] = useState<'DIRECTA' | 'COMUNICADO_OFICIAL'>('DIRECTA');
+  const [medio, setMedio] = useState('CORREO_ELECTRONICO');
+  const [notas, setNotas] = useState('');
+  const [files, setFiles] = useState<File[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+
+  const submit = async () => {
+    if (notas.trim().length < 10) return setError('Escriba las notas del trámite (mínimo 10 caracteres).');
+    if (!files.length) return setError('Adjunte al menos una evidencia de la respuesta.');
+    setEnviando(true);
+    setError(null);
+    try {
+      const adjuntos = await subirEvidencias(files);
+      await api(`/radicados/${numero}/responder`, {
+        method: 'POST',
+        body: JSON.stringify({ variante, medioRespuesta: medio, notas: notas.trim(), adjuntos }),
+      });
+      onDone();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  return (
+    <Modal title={`Responder radicado ${numero}`} onClose={onClose}>
+      <label className="field">
+        <span>¿Cómo se responde?</span>
+        <div className="chips" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
+          <label className={`rolchip ${variante === 'DIRECTA' ? 'sel' : ''}`}>
+            <input
+              type="radio"
+              checked={variante === 'DIRECTA'}
+              onChange={() => setVariante('DIRECTA')}
+            />
+            Respuesta directa al solicitante — cierra el radicado
+          </label>
+          <label className={`rolchip ${variante === 'COMUNICADO_OFICIAL' ? 'sel' : ''}`}>
+            <input
+              type="radio"
+              checked={variante === 'COMUNICADO_OFICIAL'}
+              onChange={() => setVariante('COMUNICADO_OFICIAL')}
+            />
+            Requiere comunicado oficial de Ventanilla Única
+          </label>
+        </div>
+      </label>
+
+      <label className="field">
+        <span>Forma de responder</span>
+        <select value={medio} onChange={(e) => setMedio(e.target.value)}>
+          {MEDIOS_RESPUESTA.map(([v, l]) => (
+            <option key={v} value={v}>
+              {l}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="field">
+        <span>Notas del trámite y de la respuesta</span>
+        <textarea value={notas} onChange={(e) => setNotas(e.target.value)} rows={4} />
+      </label>
+
+      <CampoEvidencias
+        files={files}
+        setFiles={setFiles}
+        label="Evidencias (obligatorio)"
+        hint={
+          variante === 'DIRECTA'
+            ? 'Copia de lo enviado al solicitante, soportes del trámite, etc.'
+            : 'Borrador de la respuesta y soportes para que Ventanilla Única elabore el comunicado.'
+        }
+      />
+
+      {variante === 'COMUNICADO_OFICIAL' && (
+        <p className="vacio" style={{ textAlign: 'left', padding: 0 }}>
+          El radicado quedará <strong>POR COMUNICAR</strong> hasta que Ventanilla Única emita el comunicado oficial.
+        </p>
+      )}
+
+      {error && <ErrorMsg>{error}</ErrorMsg>}
+      <div className="modal-acciones">
+        <Boton variante="ghost" onClick={onClose}>
+          Cancelar
+        </Boton>
+        <Boton onClick={submit} disabled={enviando}>
+          {enviando ? 'Enviando…' : 'Responder'}
+        </Boton>
+      </div>
+    </Modal>
+  );
+}
+
+function ComunicadoModal({
+  numero,
+  onClose,
+  onDone,
+}: {
+  numero: string;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [files, setFiles] = useState<File[]>([]);
+  const [obs, setObs] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+
+  const submit = async () => {
+    if (!files.length) return setError('Adjunte el comunicado oficial.');
+    setEnviando(true);
+    setError(null);
+    try {
+      const adjuntos = await subirEvidencias(files);
+      await api(`/radicados/${numero}/comunicado-oficial`, {
+        method: 'POST',
+        body: JSON.stringify({ adjuntos, observacion: obs.trim() || undefined }),
+      });
+      onDone();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  return (
+    <Modal title={`Comunicado oficial — radicado ${numero}`} onClose={onClose}>
+      <CampoEvidencias files={files} setFiles={setFiles} label="Comunicado oficial (obligatorio)" />
+      <label className="field">
+        <span>Observación (opcional)</span>
+        <textarea value={obs} onChange={(e) => setObs(e.target.value)} rows={3} />
+      </label>
+      {error && <ErrorMsg>{error}</ErrorMsg>}
+      <div className="modal-acciones">
+        <Boton variante="ghost" onClick={onClose}>
+          Cancelar
+        </Boton>
+        <Boton onClick={submit} disabled={enviando}>
+          {enviando ? 'Enviando…' : 'Emitir y cerrar'}
+        </Boton>
+      </div>
+    </Modal>
   );
 }
 
@@ -217,17 +469,22 @@ function AccionModal({
   const flat = (nodos: { id: string; codigo: string; nombre: string; hijos: never[] }[]): { id: string; label: string }[] =>
     nodos.flatMap((n) => [{ id: n.id, label: `${n.codigo} · ${n.nombre}` }, ...flat(n.hijos)]);
 
-  const cfg: Record<AccionId, { titulo: string; path: string; campos: string[] }> = {
+  const cfg: Record<
+    Exclude<AccionId, 'responder' | 'comunicado'>,
+    { titulo: string; path: string; campos: string[] }
+  > = {
     asignar: { titulo: 'Asignar radicado', path: `/radicados/${numero}/asignar`, campos: ['dependenciaId', 'funcionarioId', 'observacion'] },
     clasificar: { titulo: 'Clasificar', path: `/radicados/${numero}/clasificar`, campos: ['serieId', 'nuevoExpedienteTitulo'] },
-    aceptar: { titulo: 'Aceptar trámite', path: `/radicados/${numero}/aceptar`, campos: [] },
+    aceptar: { titulo: 'Aceptar trámite', path: `/radicados/${numero}/aceptar`, campos: ['observacion'] },
     trasladar: { titulo: 'Trasladar', path: `/radicados/${numero}/trasladar`, campos: ['dependenciaId', 'funcionarioId', 'motivo'] },
+    devolver: { titulo: 'Devolver', path: `/radicados/${numero}/devolver`, campos: ['motivo'] },
     reasignar: { titulo: 'Reasignar', path: `/radicados/${numero}/reasignar`, campos: ['funcionarioId', 'motivo'] },
     cerrar: { titulo: 'Cerrar', path: `/radicados/${numero}/cerrar`, campos: ['observacion'] },
     reabrir: { titulo: 'Reabrir', path: `/radicados/${numero}/reabrir`, campos: ['motivo'] },
     anular: { titulo: 'Anular radicado', path: `/radicados/${numero}/anulacion`, campos: ['motivo', 'justificacion'] },
   };
-  const c = cfg[accion];
+  const c = cfg[accion as Exclude<AccionId, 'responder' | 'comunicado'>];
+  const [evidencias, setEvidencias] = useState<File[]>([]);
 
   const series = useAsync<{ id: string; codigo: string; nombre: string }[]>(
     () => (accion === 'clasificar' ? api('/series') : Promise.resolve([])),
@@ -249,8 +506,9 @@ function AccionModal({
     setEnviando(true);
     setError(null);
     try {
-      const body: Record<string, string> = { ...campos };
+      const body: Record<string, unknown> = { ...campos };
       if (!body.funcionarioId) delete body.funcionarioId;
+      if (evidencias.length) body.adjuntos = await subirEvidencias(evidencias);
       await api(c.path, { method: 'POST', body: JSON.stringify(body) });
       onDone();
     } catch (e) {
@@ -312,6 +570,11 @@ function AccionModal({
           )}
         </label>
       ))}
+      <CampoEvidencias
+        files={evidencias}
+        setFiles={setEvidencias}
+        label="Evidencias / soporte (opcional)"
+      />
       {error && <ErrorMsg>{error}</ErrorMsg>}
       <div className="modal-acciones">
         <Boton variante="ghost" onClick={onClose}>

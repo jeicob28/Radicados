@@ -16,7 +16,7 @@ interface ExpLista {
 export function ExpedientesLista() {
   const { tieneRol } = useAuth();
   const nav = useNavigate();
-  const { data, error, recargar } = useAsync<ExpLista[]>(() => api('/expedientes'), []);
+  const { data, error } = useAsync<ExpLista[]>(() => api('/expedientes'), []);
   const [nuevo, setNuevo] = useState(false);
 
   return (

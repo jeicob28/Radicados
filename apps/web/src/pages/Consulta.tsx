@@ -16,7 +16,7 @@ interface Pagina {
   items: RadicadoLista[];
 }
 
-const ESTADOS = ['', 'RADICADO', 'CLASIFICADO', 'ASIGNADO', 'EN_TRAMITE', 'RESPONDIDO', 'CERRADO', 'ANULADO'];
+const ESTADOS = ['', 'RADICADO', 'CLASIFICADO', 'ASIGNADO', 'EN_TRAMITE', 'RESPONDIDO', 'POR_COMUNICAR', 'CERRADO', 'ANULADO'];
 
 export default function Consulta() {
   const { tieneRol } = useAuth();

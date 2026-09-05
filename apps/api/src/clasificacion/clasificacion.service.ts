@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { BitacoraService } from '../bitacora/bitacora.service';
 import { ExpedientesService } from './expedientes.service';
 import type { AuditCtx } from '../auth/decorators';
+import { adjuntarComoAnexos } from '../common/anexos.util';
 import { ClasificarRadicadoDto } from './dto';
 
 @Injectable()
@@ -90,6 +91,7 @@ export class ClasificacionService {
           estado: anterior === 'RADICADO' ? 'CLASIFICADO' : anterior,
         },
       });
+      await adjuntarComoAnexos(tx, radicado.id, dto.adjuntos, 'Soporte de la clasificación');
       await this.expedientes.incorporarRadicado(
         tx,
         expedienteId,

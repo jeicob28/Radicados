@@ -12,6 +12,7 @@ export type AccionBitacora =
   | 'ASIGNAR'
   | 'REASIGNAR'
   | 'TRASLADAR'
+  | 'RESPONDER'
   | 'CAMBIAR_ESTADO'
   | 'DESCARGAR'
   | 'EXPORTAR'
