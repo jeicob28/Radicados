@@ -56,7 +56,11 @@ function Layout({ children }: { children: React.ReactNode }) {
     <div className="shell">
       <aside>
         <div className="logo">
-          <span className="mark">SGDEA</span>
+          <img src="/cootracir.png" alt="Cootracir" className="marca-logo" />
+          <div className="marca-txt">
+            <strong>Cootracir</strong>
+            <span>SGDEA</span>
+          </div>
         </div>
         <nav>
           {NAV.filter((n) => n.roles.length === 0 || tieneRol(...n.roles)).map((n) => (

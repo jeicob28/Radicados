@@ -5,7 +5,7 @@ import { Boton, ErrorMsg, Field } from '../ui';
 
 export default function Login() {
   const { login } = useAuth();
-  const [email, setEmail] = useState('admin@empresa.local');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [codigo, setCodigo] = useState('');
   const [pideMfa, setPideMfa] = useState(false);
@@ -31,10 +31,10 @@ export default function Login() {
     <div className="login-wrap">
       <form className="login card" onSubmit={submit}>
         <div className="brand">
-          <span className="mark">SGDEA</span>
+          <img src="/cootracir.png" alt="Cootracir" className="marca-logo lg" />
           <div>
-            <h1>Radicación y Gestión Documental</h1>
-            <p>Acuerdo 001 de 2024 (AGN)</p>
+            <h1>Cootracir · SGDEA</h1>
+            <p>Cooperativa Integral de Transportadores de Circasia</p>
           </div>
         </div>
 

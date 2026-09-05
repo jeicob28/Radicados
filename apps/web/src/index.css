@@ -35,6 +35,11 @@ h1 { font-size: 1.35rem; margin: 0 0 18px; }
   font-weight: 700; letter-spacing: 0.06em; color: #fff; background: var(--primary);
   padding: 9px 12px; border-radius: 8px; font-size: 14px;
 }
+.marca-logo { height: 30px; width: auto; flex: none; display: block; }
+.marca-logo.lg { height: 48px; }
+.marca-txt { display: flex; flex-direction: column; line-height: 1.2; }
+.marca-txt strong { font-size: 0.95rem; letter-spacing: 0.03em; }
+.marca-txt span { font-size: 0.7rem; letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; }
 
 /* ---------- shell ---------- */
 .shell { display: grid; grid-template-columns: 232px 1fr; min-height: 100vh; }
@@ -42,7 +47,7 @@ aside {
   background: var(--surface); border-right: 1px solid var(--border);
   display: flex; flex-direction: column; padding: 20px 14px; gap: 8px; position: sticky; top: 0; height: 100vh;
 }
-aside .logo { padding: 4px 6px 14px; }
+aside .logo { padding: 4px 6px 14px; display: flex; align-items: center; gap: 10px; }
 aside nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
 aside nav a {
   display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 7px;

@@ -30,7 +30,7 @@ export default function CambiarPasswordForzado() {
     <div className="login-wrap">
       <form className="login card" onSubmit={submit}>
         <div className="brand">
-          <span className="mark">SGDEA</span>
+          <img src="/cootracir.png" alt="Cootracir" className="marca-logo lg" />
           <div>
             <h1>Cambio de contraseña obligatorio</h1>
             <p>{usuario?.nombre} — por política de seguridad debes actualizarla antes de continuar.</p>
