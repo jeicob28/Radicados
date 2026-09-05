@@ -12,6 +12,7 @@ import { api } from './api';
 import Login from './pages/Login';
 import CambiarPasswordForzado from './pages/CambiarPasswordForzado';
 import Dashboard from './pages/Dashboard';
+import PieDePagina from './components/PieDePagina';
 import Radicar from './pages/Radicar';
 import Consulta from './pages/Consulta';
 import RadicadoDetalle from './pages/RadicadoDetalle';
@@ -59,7 +60,7 @@ function Layout({ children }: { children: React.ReactNode }) {
           <img src="/cootracir.png" alt="Cootracir" className="marca-logo" />
           <div className="marca-txt">
             <strong>Cootracir</strong>
-            <span>SGDEA</span>
+            <span title="Sistema de Gestión de Documentos Electrónicos de Archivo">SGDEA</span>
           </div>
         </div>
         <nav>
@@ -90,7 +91,10 @@ function Layout({ children }: { children: React.ReactNode }) {
           </button>
         </div>
       </aside>
-      <main>{children}</main>
+      <main>
+        {children}
+        <PieDePagina />
+      </main>
     </div>
   );
 }

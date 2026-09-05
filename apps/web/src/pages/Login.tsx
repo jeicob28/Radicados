@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../auth';
 import { ApiError } from '../api';
 import { Boton, ErrorMsg, Field } from '../ui';
+import PieDePagina from '../components/PieDePagina';
 
 export default function Login() {
   const { login } = useAuth();
@@ -33,8 +34,8 @@ export default function Login() {
         <div className="brand">
           <img src="/cootracir.png" alt="Cootracir" className="marca-logo lg" />
           <div>
-            <h1>Cootracir · SGDEA</h1>
-            <p>Cooperativa Integral de Transportadores de Circasia</p>
+            <h1>Cootracir</h1>
+            <p>SGDEA — Sistema de Gestión de Documentos Electrónicos de Archivo</p>
           </div>
         </div>
 
@@ -55,6 +56,7 @@ export default function Login() {
           {enviando ? 'Ingresando…' : 'Ingresar'}
         </Boton>
       </form>
+      <PieDePagina compacto />
     </div>
   );
 }

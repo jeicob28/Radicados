@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api, ApiError } from '../api';
 import { useAuth } from '../auth';
 import { Boton, ErrorMsg, Field } from '../ui';
+import PieDePagina from '../components/PieDePagina';
 
 export default function CambiarPasswordForzado() {
   const { usuario, logout, refrescarPerfil } = useAuth();
@@ -53,6 +54,7 @@ export default function CambiarPasswordForzado() {
           Cerrar sesión
         </button>
       </form>
+      <PieDePagina compacto />
     </div>
   );
 }
