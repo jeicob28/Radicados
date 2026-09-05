@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -8,7 +9,8 @@ import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { BitacoraService } from '../bitacora/bitacora.service';
 import { StorageService } from '../storage/storage.service';
-import type { AuditCtx } from '../auth/decorators';
+import type { AuditCtx, UsuarioActual } from '../auth/decorators';
+import { alcanceDependencia } from '../common/visibilidad-radicados';
 import { CrearExpedienteDto, IncorporarDocumentoDto } from './dto';
 
 @Injectable()
@@ -61,7 +63,14 @@ export class ExpedientesService {
     return exp;
   }
 
-  async listar(params: { estado?: string; serieId?: string; dependenciaId?: string; q?: string }) {
+  async listar(
+    params: { estado?: string; serieId?: string; dependenciaId?: string; q?: string },
+    usuario?: UsuarioActual,
+  ) {
+    const alcance = alcanceDependencia(usuario);
+    if (alcance === '') return [];
+    if (alcance) params = { ...params, dependenciaId: alcance };
+
     const where: Prisma.ExpedienteWhereInput = {};
     if (params.estado) where.estado = params.estado as never;
     if (params.serieId) where.serieId = params.serieId;
@@ -84,7 +93,12 @@ export class ExpedientesService {
     });
   }
 
-  async obtener(numero: string) {
+  /**
+   * `usuario` solo se pasa desde rutas públicas (controller); las llamadas
+   * internas del servicio van sin él y no aplican la restricción por
+   * dependencia.
+   */
+  async obtener(numero: string, usuario?: UsuarioActual) {
     const exp = await this.prisma.expediente.findUnique({
       where: { numero },
       include: {
@@ -100,6 +114,10 @@ export class ExpedientesService {
       },
     });
     if (!exp) throw new NotFoundException(`Expediente ${numero} no encontrado`);
+    const alcance = alcanceDependencia(usuario);
+    if (alcance !== null && exp.dependenciaId !== alcance) {
+      throw new ForbiddenException('No tiene acceso a este expediente');
+    }
     return exp;
   }
 
@@ -292,8 +310,8 @@ export class ExpedientesService {
   }
 
   /** Hoja de control / índice del expediente. */
-  async indice(numero: string) {
-    const exp = await this.obtener(numero);
+  async indice(numero: string, usuario?: UsuarioActual) {
+    const exp = await this.obtener(numero, usuario);
     return {
       expediente: exp.numero,
       titulo: exp.titulo,

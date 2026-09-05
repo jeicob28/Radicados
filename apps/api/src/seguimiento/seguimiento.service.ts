@@ -8,8 +8,9 @@ import { EstadoRadicado, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BitacoraService } from '../bitacora/bitacora.service';
 import { DiasHabilesService } from '../common/dias-habiles.service';
-import type { AuditCtx } from '../auth/decorators';
+import type { AuditCtx, UsuarioActual } from '../auth/decorators';
 import { ROLES } from '../auth/roles';
+import { alcanceDependencia } from '../common/visibilidad-radicados';
 import { AsignarDto, MotivoDto, ReasignarDto, TrasladarDto } from './dto';
 
 const ABIERTOS: EstadoRadicado[] = [
@@ -344,7 +345,17 @@ export class SeguimientoService {
     }));
   }
 
-  async vencimientos(params: { dependenciaId?: string; nivel?: string }) {
+  async vencimientos(
+    params: { dependenciaId?: string; nivel?: string },
+    usuario?: UsuarioActual,
+  ) {
+    // Ventanilla única: quien no tiene visibilidad total solo ve su
+    // dependencia (ignora el dependenciaId del query); sin dependencia
+    // asignada no ve nada.
+    const alcance = alcanceDependencia(usuario);
+    if (alcance === '') return [];
+    if (alcance) params = { ...params, dependenciaId: alcance };
+
     const where: Prisma.RadicadoWhereInput = {
       estado: { in: ABIERTOS },
       fechaVencimiento: { not: null },
@@ -375,7 +386,21 @@ export class SeguimientoService {
     }));
   }
 
-  async indicadores(dependenciaId?: string) {
+  async indicadores(dependenciaId?: string, usuario?: UsuarioActual) {
+    const alcance = alcanceDependencia(usuario);
+    if (alcance === '') {
+      return {
+        abiertos: 0,
+        vencidos: 0,
+        porVencer: 0,
+        cerrados: 0,
+        respondidos: 0,
+        tiempoPromedioRespuestaHoras: null,
+        semaforo: {},
+      };
+    }
+    if (alcance) dependenciaId = alcance;
+
     const base: Prisma.RadicadoWhereInput = dependenciaId ? { dependenciaId } : {};
 
     const [abiertos, vencidos, porVencer, respondidos, cerrados, porNivel] = await Promise.all([

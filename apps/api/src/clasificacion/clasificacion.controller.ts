@@ -23,8 +23,8 @@ import {
   CrearTipoDocumentalDto,
   IncorporarDocumentoDto,
 } from './dto';
-import { Auditoria, Roles } from '../auth/decorators';
-import type { AuditCtx } from '../auth/decorators';
+import { Auditoria, CurrentUser, Roles } from '../auth/decorators';
+import type { AuditCtx, UsuarioActual } from '../auth/decorators';
 import { ROLES } from '../auth/roles';
 
 @ApiTags('gestión documental')
@@ -88,23 +88,24 @@ export class ClasificacionController {
 
   @Get('expedientes')
   listarExpedientes(
+    @CurrentUser() usuario: UsuarioActual,
     @Query('estado') estado?: string,
     @Query('serieId') serieId?: string,
     @Query('dependenciaId') dependenciaId?: string,
     @Query('q') q?: string,
   ) {
-    return this.expedientes.listar({ estado, serieId, dependenciaId, q });
+    return this.expedientes.listar({ estado, serieId, dependenciaId, q }, usuario);
   }
 
   @Get('expedientes/:numero')
-  obtenerExpediente(@Param('numero') numero: string) {
-    return this.expedientes.obtener(numero);
+  obtenerExpediente(@Param('numero') numero: string, @CurrentUser() usuario: UsuarioActual) {
+    return this.expedientes.obtener(numero, usuario);
   }
 
   @Get('expedientes/:numero/indice')
   @ApiOperation({ summary: 'Hoja de control / índice del expediente' })
-  indice(@Param('numero') numero: string) {
-    return this.expedientes.indice(numero);
+  indice(@Param('numero') numero: string, @CurrentUser() usuario: UsuarioActual) {
+    return this.expedientes.indice(numero, usuario);
   }
 
   @Post('expedientes/:numero/documentos')

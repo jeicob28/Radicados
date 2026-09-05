@@ -67,14 +67,22 @@ export class SeguimientoController {
   }
 
   @Get('seguimiento/vencimientos')
-  @ApiOperation({ summary: 'Radicados abiertos con fecha de vencimiento y su nivel de alerta' })
-  vencimientos(@Query('dependenciaId') dependenciaId?: string, @Query('nivel') nivel?: string) {
-    return this.seguimiento.vencimientos({ dependenciaId, nivel });
+  @ApiOperation({
+    summary:
+      'Radicados abiertos con fecha de vencimiento y su nivel de alerta. ' +
+      'Quien no tiene visibilidad total solo ve los de su dependencia.',
+  })
+  vencimientos(
+    @CurrentUser() usuario: UsuarioActual,
+    @Query('dependenciaId') dependenciaId?: string,
+    @Query('nivel') nivel?: string,
+  ) {
+    return this.seguimiento.vencimientos({ dependenciaId, nivel }, usuario);
   }
 
   @Get('seguimiento/indicadores')
-  indicadores(@Query('dependenciaId') dependenciaId?: string) {
-    return this.seguimiento.indicadores(dependenciaId);
+  indicadores(@CurrentUser() usuario: UsuarioActual, @Query('dependenciaId') dependenciaId?: string) {
+    return this.seguimiento.indicadores(dependenciaId, usuario);
   }
 
   @Post('seguimiento/recalcular-alertas')

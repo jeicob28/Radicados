@@ -12,26 +12,8 @@ import { BitacoraService } from '../bitacora/bitacora.service';
 import { DiasHabilesService } from '../common/dias-habiles.service';
 import { hashRadicado } from '../common/hash';
 import type { AuditCtx, UsuarioActual } from '../auth/decorators';
-import { ROLES } from '../auth/roles';
+import { tieneVisibilidadTotal } from '../common/visibilidad-radicados';
 import { AnularRadicadoDto, RadicarDto } from './dto';
-
-/**
- * Roles con visibilidad total sobre los radicados, sin importar la
- * dependencia: VENTANILLA (ventanilla única, recibe y reparte todo),
- * ARCHIVISTA (debe ver lo sin clasificar de cualquier área para poder
- * clasificarlo), AUDITOR (lectura total por definición) y RADICADOR
- * (coordina el consecutivo y anula, función transversal). ADMIN siempre
- * tiene acceso total (superrol, ver RolesGuard) aunque no esté en esta
- * lista. Cualquier otro rol (FUNCIONARIO, JEFE) solo ve lo asignado a su
- * propia dependencia — modelo de ventanilla única centralizada.
- */
-const ROLES_VISIBILIDAD_TOTAL: string[] = [
-  ROLES.ADMIN,
-  ROLES.VENTANILLA,
-  ROLES.ARCHIVISTA,
-  ROLES.AUDITOR,
-  ROLES.RADICADOR,
-];
 
 interface AsignacionConsecutivo {
   consecutivo_id: string;
@@ -48,12 +30,6 @@ export class RadicacionService {
     private readonly bitacora: BitacoraService,
     private readonly diasHabiles: DiasHabilesService,
   ) {}
-
-  /** true si el usuario ve todos los radicados sin importar la dependencia. */
-  private tieneVisibilidadTotal(usuario?: UsuarioActual): boolean {
-    const roles = usuario?.roles ?? [];
-    return ROLES_VISIBILIDAD_TOTAL.some((r) => roles.includes(r));
-  }
 
   private async vigenciaActual(): Promise<number> {
     const p = await this.prisma.parametro.findUnique({
@@ -270,7 +246,7 @@ export class RadicacionService {
     // a su propia dependencia (ignora cualquier dependenciaId que haya
     // pedido por query — no puede curiosear otras áreas), y si no tiene
     // dependencia asignada, no ve nada.
-    if (usuario && !this.tieneVisibilidadTotal(usuario)) {
+    if (usuario && !tieneVisibilidadTotal(usuario)) {
       if (!usuario.dependenciaId) return { total: 0, page, pageSize, items: [] };
       params = { ...params, dependenciaId: usuario.dependenciaId };
     }
@@ -344,7 +320,7 @@ export class RadicacionService {
       },
     });
     if (!r) throw new NotFoundException(`Radicado ${numero} no encontrado`);
-    if (usuario && !this.tieneVisibilidadTotal(usuario) && r.dependenciaId !== usuario.dependenciaId) {
+    if (usuario && !tieneVisibilidadTotal(usuario) && r.dependenciaId !== usuario.dependenciaId) {
       throw new ForbiddenException('No tiene acceso a este radicado');
     }
     return r;

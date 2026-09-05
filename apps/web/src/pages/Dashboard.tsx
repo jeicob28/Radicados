@@ -1,6 +1,9 @@
 import { Link } from 'react-router-dom';
 import { api } from '../api';
+import { useAuth } from '../auth';
 import { Alerta, Card, ErrorMsg, useAsync } from '../ui';
+
+const ROLES_VISIBILIDAD_TOTAL = ['VENTANILLA', 'ARCHIVISTA', 'AUDITOR', 'RADICADOR'];
 
 interface Indicadores {
   abiertos: number;
@@ -23,12 +26,19 @@ interface Venc {
 }
 
 export default function Dashboard() {
+  const { tieneRol } = useAuth();
+  const soloMiDependencia = !tieneRol(...ROLES_VISIBILIDAD_TOTAL);
   const ind = useAsync(() => api<Indicadores>('/seguimiento/indicadores'), []);
   const venc = useAsync(() => api<Venc[]>('/seguimiento/vencimientos'), []);
 
   return (
     <div className="page">
       <h1>Panel</h1>
+      {soloMiDependencia && (
+        <p className="vacio" style={{ textAlign: 'left', padding: '0 0 10px' }}>
+          Los indicadores y vencimientos son solo de tu dependencia.
+        </p>
+      )}
 
       {ind.error && <ErrorMsg>{ind.error}</ErrorMsg>}
       {ind.data && (

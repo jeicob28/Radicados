@@ -968,6 +968,17 @@ con la firma.
   un radicado de la dependencia B (403 aunque conozca el número exacto);
   VENTANILLA/ARCHIVISTA/AUDITOR/RADICADOR siguen viendo todo.
 
+**Complemento (2026-09-05, tras prueba del área):** el filtro por
+dependencia se extendió a las demás vistas que también muestran radicados
+—el **Panel** (`/seguimiento/indicadores` y `/seguimiento/vencimientos`) y
+los **Expedientes** (`/expedientes`, su detalle y su índice)—, con la
+misma regla: quien no tiene visibilidad total solo ve lo de su dependencia
+y, sin dependencia asignada, no ve nada. La lógica quedó centralizada en
+`apps/api/src/common/visibilidad-radicados.ts`. Nota operativa: como el rol
+y la dependencia viajan en el token de acceso (vigencia ~15 min), al
+cambiarle la dependencia o el rol a un usuario conviene que cierre y vuelva
+a iniciar sesión para que el cambio surta efecto de inmediato.
+
 **Fuera del alcance de esta petición, sin definir todavía:**
 - El mecanismo exacto para que un funcionario "entregue" su respuesta a
   Ventanilla no cambió: Ventanilla usa el mismo formulario de Radicar con
