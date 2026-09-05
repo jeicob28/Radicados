@@ -76,6 +76,23 @@ POR_COMUNICAR, notificación `COMUNICADO_PENDIENTE`), funcionario intenta
 adjunto, notificación al funcionario), devolver con evidencia (→ RADICADO,
 "Soporte de la devolución"). Jest 8/8, builds limpios.
 
+### Complemento (2026-09-05) — quién puede responder/cerrar
+
+Se retira `@Roles(FUNCIONARIO, JEFE)` de `aceptar` / `trasladar` /
+`devolver` / `cerrar` / `responder`. En su lugar, `SeguimientoService`
+usa `cargarParaTramite(numero, ctx)` → `puedeTramitar(usuario, radicado)`
+(`common/visibilidad-radicados.ts`): `ADMIN` siempre; `AUDITOR` nunca;
+el resto si `radicado.funcionarioId === usuario.id` o
+`usuario.dependenciaId === radicado.dependenciaId`. `responder` acepta
+`EN_TRAMITE` o `RESPONDIDO`. `POST /radicados/adjuntos-tramite` pierde el
+gate de rol (cualquier autenticado; la restricción real está en la
+acción). Frontend: se elimina la acción `cerrar`; `responder` se
+renombra a **"Responder / cerrar"** y su visibilidad se calcula con la
+misma lógica (`esAuditorPuro`, dependencia o asignación). Interface
+`funcionario` del detalle pasa a incluir `id`. Verificado: un ARCHIVISTA
+de la dependencia acepta y responde (→ CERRADO); un AUDITOR de la misma
+dependencia recibe 403 al responder pero 200 al consultar el detalle.
+
 ### Complemento (2026-09-05) — evidencias en todas las acciones
 
 `adjuntarComoAnexos()` movido a `apps/api/src/common/anexos.util.ts`.

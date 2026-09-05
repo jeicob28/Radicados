@@ -1055,6 +1055,24 @@ soporte" (obligatorio solo en responder y en el comunicado oficial;
 opcional en el resto). Lógica común en
 `apps/api/src/common/anexos.util.ts`.
 
+**Complemento (2026-09-05, 2ª prueba del área) — quién puede
+responder/cerrar:** el flujo de respuesta con sus dos variantes es la
+**única forma de cerrar** un radicado, y está abierto a **todos los roles
+salvo AUDITOR** (que solo entra a validar), sobre los radicados asignados
+a la persona o a su dependencia — no depende de tener el rol
+`FUNCIONARIO` o `JEFE`. Se quitó el candado por rol de `aceptar`,
+`trasladar`, `devolver`, `cerrar` y `responder`; en su lugar el servicio
+verifica `puedeTramitar(usuario, radicado)` (helper en
+`common/visibilidad-radicados.ts`): `ADMIN` siempre puede, `AUDITOR`
+nunca, el resto si el radicado está asignado a su usuario o a su
+dependencia. Se unificó el botón: el "Cerrar" simple desaparece de la
+interfaz y su lugar lo toma **"Responder / cerrar"**, que siempre pide la
+variante (directa / por Ventanilla), la forma de responder y las
+evidencias. `responder` acepta ahora radicados en `EN_TRAMITE` o
+`RESPONDIDO`. El endpoint `POST /radicados/adjuntos-tramite` queda abierto
+a cualquier usuario autenticado (la restricción real se aplica al ejecutar
+la acción, no al subir el archivo).
+
 **Sin definir todavía (fuera de alcance de esta petición):**
 - Si más adelante se quiere que el jefe apruebe la respuesta del
   funcionario antes de cerrar, o que ciertos tipos de comunicación

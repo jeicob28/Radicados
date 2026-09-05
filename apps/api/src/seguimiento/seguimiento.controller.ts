@@ -31,9 +31,11 @@ export class SeguimientoController {
     return this.seguimiento.asignar(numero, dto, ctx);
   }
 
+  // aceptar / trasladar / devolver / cerrar / responder: sin restricción por
+  // rol — cualquier usuario salvo AUDITOR puede tramitar los radicados
+  // asignados a él o a su dependencia (el servicio lo verifica). Ver §21.2.
   @Post('radicados/:numero/aceptar')
-  @Roles(ROLES.FUNCIONARIO, ROLES.JEFE)
-  @ApiOperation({ summary: 'El funcionario acepta el trámite (pasa a EN_TRAMITE)' })
+  @ApiOperation({ summary: 'Acepta el trámite del radicado (pasa a EN_TRAMITE)' })
   aceptar(
     @Param('numero') numero: string,
     @Body() dto: ObservacionDto,
@@ -43,7 +45,6 @@ export class SeguimientoController {
   }
 
   @Post('radicados/:numero/trasladar')
-  @Roles(ROLES.FUNCIONARIO, ROLES.JEFE)
   trasladar(@Param('numero') numero: string, @Body() dto: TrasladarDto, @Auditoria() ctx: AuditCtx) {
     return this.seguimiento.trasladar(numero, dto, ctx);
   }
@@ -55,23 +56,20 @@ export class SeguimientoController {
   }
 
   @Post('radicados/:numero/devolver')
-  @Roles(ROLES.FUNCIONARIO, ROLES.JEFE)
   devolver(@Param('numero') numero: string, @Body() dto: MotivoDto, @Auditoria() ctx: AuditCtx) {
     return this.seguimiento.devolver(numero, dto, ctx);
   }
 
   @Post('radicados/:numero/cerrar')
-  @Roles(ROLES.FUNCIONARIO, ROLES.JEFE)
   cerrar(@Param('numero') numero: string, @Body() dto: ObservacionDto, @Auditoria() ctx: AuditCtx) {
     return this.seguimiento.cerrar(numero, dto, ctx);
   }
 
   @Post('radicados/:numero/responder')
-  @Roles(ROLES.FUNCIONARIO, ROLES.JEFE)
   @ApiOperation({
     summary:
-      'El funcionario responde el radicado: elige la forma de responder, adjunta evidencias y ' +
-      'la variante (DIRECTA = cierra; COMUNICADO_OFICIAL = pasa a Ventanilla Única).',
+      'Responde y cierra el radicado: elige la forma de responder, adjunta evidencias y la ' +
+      'variante (DIRECTA = cierra; COMUNICADO_OFICIAL = pasa a Ventanilla Única).',
   })
   responder(@Param('numero') numero: string, @Body() dto: ResponderDto, @Auditoria() ctx: AuditCtx) {
     return this.seguimiento.responder(numero, dto, ctx);

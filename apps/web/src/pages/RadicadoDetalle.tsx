@@ -112,7 +112,7 @@ interface Radicado {
   dependenciaId: string | null;
   tercero?: { nombre: string; numeroDocumento: string; email: string | null } | null;
   dependencia?: { codigo: string; nombre: string } | null;
-  funcionario?: { nombre: string } | null;
+  funcionario?: { id: string; nombre: string } | null;
   serie?: { codigo: string; nombre: string } | null;
   expediente?: { numero: string; titulo: string } | null;
   anexos: Anexo[];
@@ -128,14 +128,13 @@ type AccionId =
   | 'responder'
   | 'devolver'
   | 'comunicado'
-  | 'cerrar'
   | 'reabrir'
   | 'anular'
   | 'clasificar';
 
 export default function RadicadoDetalle() {
   const { numero } = useParams();
-  const { tieneRol } = useAuth();
+  const { tieneRol, usuario } = useAuth();
   const { data, error, cargando, recargar } = useAsync<Radicado>(
     () => api(`/radicados/${numero}`),
     [numero],
@@ -148,16 +147,27 @@ export default function RadicadoDetalle() {
 
   const r = data;
   const firma = r.anexos.find((a) => a.nombre === NOMBRE_FIRMA);
+
+  // Tramitar (aceptar / responder / trasladar / devolver): todos los roles
+  // salvo AUDITOR, sobre los radicados asignados a la persona o a su
+  // dependencia. Ver Requerimientos §21.2. El backend lo verifica también.
+  const roles = usuario?.roles ?? [];
+  const esAuditorPuro = roles.includes('AUDITOR') && !roles.includes('ADMIN');
+  const puedoTramitar =
+    !esAuditorPuro &&
+    (roles.includes('ADMIN') ||
+      (!!r.funcionario?.id && r.funcionario.id === usuario?.id) ||
+      (!!usuario?.dependenciaId && usuario.dependenciaId === r.dependenciaId));
+
   const acciones: { id: AccionId; label: string; ok: boolean }[] = [
     { id: 'asignar', label: 'Asignar', ok: tieneRol('JEFE', 'VENTANILLA', 'RADICADOR') && ['RADICADO', 'CLASIFICADO', 'REABIERTO'].includes(r.estado) },
     { id: 'clasificar', label: 'Clasificar', ok: tieneRol('ARCHIVISTA', 'VENTANILLA') && !r.expediente && r.estado !== 'ANULADO' },
-    { id: 'aceptar', label: 'Aceptar trámite', ok: tieneRol('FUNCIONARIO', 'JEFE') && r.estado === 'ASIGNADO' },
-    { id: 'responder', label: 'Responder', ok: tieneRol('FUNCIONARIO', 'JEFE') && r.estado === 'EN_TRAMITE' },
-    { id: 'trasladar', label: 'Trasladar', ok: tieneRol('FUNCIONARIO', 'JEFE') && ['ASIGNADO', 'EN_TRAMITE'].includes(r.estado) },
-    { id: 'devolver', label: 'Devolver', ok: tieneRol('FUNCIONARIO', 'JEFE') && ['ASIGNADO', 'EN_TRAMITE'].includes(r.estado) },
+    { id: 'aceptar', label: 'Aceptar trámite', ok: puedoTramitar && r.estado === 'ASIGNADO' },
+    { id: 'responder', label: 'Responder / cerrar', ok: puedoTramitar && ['EN_TRAMITE', 'RESPONDIDO'].includes(r.estado) },
+    { id: 'trasladar', label: 'Trasladar', ok: puedoTramitar && ['ASIGNADO', 'EN_TRAMITE'].includes(r.estado) },
+    { id: 'devolver', label: 'Devolver', ok: puedoTramitar && ['ASIGNADO', 'EN_TRAMITE'].includes(r.estado) },
     { id: 'reasignar', label: 'Reasignar', ok: tieneRol('JEFE') && ['ASIGNADO', 'EN_TRAMITE'].includes(r.estado) },
     { id: 'comunicado', label: 'Emitir comunicado oficial', ok: tieneRol('VENTANILLA') && r.estado === 'POR_COMUNICAR' },
-    { id: 'cerrar', label: 'Cerrar', ok: tieneRol('FUNCIONARIO', 'JEFE') && (r.estado === 'RESPONDIDO' || r.estado === 'EN_TRAMITE') },
     { id: 'reabrir', label: 'Reabrir', ok: tieneRol('JEFE') && r.estado === 'CERRADO' },
     { id: 'anular', label: 'Anular', ok: tieneRol('RADICADOR') && r.estado !== 'ANULADO' },
   ];
@@ -479,7 +489,6 @@ function AccionModal({
     trasladar: { titulo: 'Trasladar', path: `/radicados/${numero}/trasladar`, campos: ['dependenciaId', 'funcionarioId', 'motivo'] },
     devolver: { titulo: 'Devolver', path: `/radicados/${numero}/devolver`, campos: ['motivo'] },
     reasignar: { titulo: 'Reasignar', path: `/radicados/${numero}/reasignar`, campos: ['funcionarioId', 'motivo'] },
-    cerrar: { titulo: 'Cerrar', path: `/radicados/${numero}/cerrar`, campos: ['observacion'] },
     reabrir: { titulo: 'Reabrir', path: `/radicados/${numero}/reabrir`, campos: ['motivo'] },
     anular: { titulo: 'Anular radicado', path: `/radicados/${numero}/anulacion`, campos: ['motivo', 'justificacion'] },
   };

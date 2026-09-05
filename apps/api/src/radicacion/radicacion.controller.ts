@@ -47,12 +47,11 @@ export class RadicacionController {
   }
 
   @Post('adjuntos-tramite')
-  @Roles(ROLES.FUNCIONARIO, ROLES.JEFE, ROLES.VENTANILLA)
   @ApiConsumes('multipart/form-data')
   @ApiOperation({
     summary:
       'Sube evidencias/soportes para una acción de trámite (responder, devolver, trasladar, comunicado oficial) ' +
-      'y devuelve sus descriptores para incluirlos en la acción.',
+      'y devuelve sus descriptores para incluirlos en la acción. Cualquier usuario autenticado.',
   })
   @UseInterceptors(FilesInterceptor('files', 20))
   async subirAdjuntosTramite(@UploadedFiles() files: Express.Multer.File[]) {

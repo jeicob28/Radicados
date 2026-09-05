@@ -38,3 +38,21 @@ export function alcanceDependencia(usuario?: UsuarioActual): string | null {
   if (!usuario || tieneVisibilidadTotal(usuario)) return null;
   return usuario.dependenciaId ?? '';
 }
+
+/**
+ * ¿Puede este usuario tramitar (aceptar, responder, cerrar, trasladar,
+ * devolver) este radicado? Ver Requerimientos §21.2 — aplica a **todos los
+ * roles salvo AUDITOR** (que solo entra a validar), sobre los radicados
+ * asignados a la persona o a su dependencia. ADMIN siempre puede.
+ */
+export function puedeTramitar(
+  usuario: UsuarioActual | undefined,
+  radicado: { dependenciaId: string | null; funcionarioId: string | null },
+): boolean {
+  const roles = usuario?.roles ?? [];
+  if (roles.includes(ROLES.ADMIN)) return true;
+  if (roles.includes(ROLES.AUDITOR)) return false;
+  if (!usuario) return false;
+  if (radicado.funcionarioId && radicado.funcionarioId === usuario.id) return true;
+  return !!usuario.dependenciaId && usuario.dependenciaId === radicado.dependenciaId;
+}

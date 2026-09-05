@@ -10,7 +10,7 @@ import { BitacoraService } from '../bitacora/bitacora.service';
 import { DiasHabilesService } from '../common/dias-habiles.service';
 import type { AuditCtx, UsuarioActual } from '../auth/decorators';
 import { ROLES } from '../auth/roles';
-import { alcanceDependencia } from '../common/visibilidad-radicados';
+import { alcanceDependencia, puedeTramitar } from '../common/visibilidad-radicados';
 import { adjuntarComoAnexos } from '../common/anexos.util';
 import {
   AsignarDto,
@@ -43,6 +43,17 @@ export class SeguimientoService {
     const r = await this.prisma.radicado.findUnique({ where: { numero } });
     if (!r) throw new NotFoundException(`Radicado ${numero} no encontrado`);
     if (r.estado === 'ANULADO') throw new BadRequestException('El radicado está anulado');
+    return r;
+  }
+
+  /** Carga el radicado y exige que el usuario pueda tramitarlo (§21.2). */
+  private async cargarParaTramite(numero: string, ctx: AuditCtx) {
+    const r = await this.cargar(numero);
+    if (!puedeTramitar(ctx.usuario, r)) {
+      throw new ForbiddenException(
+        'Solo puede tramitar este radicado quien lo tenga asignado o pertenezca a su dependencia.',
+      );
+    }
     return r;
   }
 
@@ -129,18 +140,9 @@ export class SeguimientoService {
   }
 
   async aceptar(numero: string, dto: ObservacionDto, ctx: AuditCtx) {
-    const r = await this.cargar(numero);
+    const r = await this.cargarParaTramite(numero, ctx);
     if (r.estado !== 'ASIGNADO') {
       throw new BadRequestException('Solo se acepta un radicado en estado ASIGNADO');
-    }
-    if (
-      r.funcionarioId &&
-      ctx.usuario &&
-      r.funcionarioId !== ctx.usuario.id &&
-      !ctx.usuario.roles.includes(ROLES.JEFE) &&
-      !ctx.usuario.roles.includes(ROLES.ADMIN)
-    ) {
-      throw new ForbiddenException('El radicado está asignado a otro funcionario');
     }
 
     const actualizado = await this.prisma.$transaction(async (tx) => {
@@ -174,7 +176,7 @@ export class SeguimientoService {
   }
 
   async trasladar(numero: string, dto: TrasladarDto, ctx: AuditCtx) {
-    const r = await this.cargar(numero);
+    const r = await this.cargarParaTramite(numero, ctx);
     if (!['ASIGNADO', 'EN_TRAMITE'].includes(r.estado)) {
       throw new BadRequestException(`No se puede trasladar en estado ${r.estado}`);
     }
@@ -252,7 +254,7 @@ export class SeguimientoService {
   }
 
   async devolver(numero: string, dto: MotivoDto, ctx: AuditCtx) {
-    const r = await this.cargar(numero);
+    const r = await this.cargarParaTramite(numero, ctx);
     if (!['ASIGNADO', 'EN_TRAMITE'].includes(r.estado)) {
       throw new BadRequestException(`No se puede devolver en estado ${r.estado}`);
     }
@@ -283,7 +285,7 @@ export class SeguimientoService {
   }
 
   async cerrar(numero: string, dto: ObservacionDto, ctx: AuditCtx) {
-    const r = await this.cargar(numero);
+    const r = await this.cargarParaTramite(numero, ctx);
     const puede =
       r.estado === 'RESPONDIDO' ||
       (r.estado === 'EN_TRAMITE' && SIN_RESPUESTA_OBLIGATORIA.includes(r.tipoComunicacion));
@@ -328,21 +330,12 @@ export class SeguimientoService {
    * respuesta se archiva sobre el mismo radicado de entrada.
    */
   async responder(numero: string, dto: ResponderDto, ctx: AuditCtx) {
-    const r = await this.cargar(numero);
-    if (r.estado !== 'EN_TRAMITE') {
+    const r = await this.cargarParaTramite(numero, ctx);
+    if (!['EN_TRAMITE', 'RESPONDIDO'].includes(r.estado)) {
       throw new BadRequestException(
-        `Para responder, el radicado debe estar EN_TRAMITE (estado actual: ${r.estado}). ` +
+        `Para responder/cerrar, el radicado debe estar EN_TRAMITE (estado actual: ${r.estado}). ` +
           'Acepte primero el trámite.',
       );
-    }
-    if (
-      r.funcionarioId &&
-      ctx.usuario &&
-      r.funcionarioId !== ctx.usuario.id &&
-      !ctx.usuario.roles.includes(ROLES.JEFE) &&
-      !ctx.usuario.roles.includes(ROLES.ADMIN)
-    ) {
-      throw new ForbiddenException('El radicado está asignado a otro funcionario');
     }
 
     const directa = dto.variante === 'DIRECTA';
