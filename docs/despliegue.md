@@ -73,12 +73,25 @@ cada actualización.
   volumen del certificado para que se regenere: `docker compose down` (sin `-v`
   general) y `docker volume rm radicados_proxycerts`, luego vuelve a levantar.
 
-## 6. Backups
+## 6. Copias de seguridad
+
+Ya quedan **activas solas** con el overlay de producción: el servicio
+`backup` hace una copia completa (base de datos + documentos +
+configuración) cada día a las 02:00 en `./backups/`, con manifiesto,
+checksums y retención de 14 días. No hay que tocar `cron` en el servidor.
 
 ```bash
-crontab -e
-# 0 2 * * * cd /home/administrador/radicados-sgdea && ./infra/backup/backup.sh >> backups/backup.log 2>&1
+docker compose logs -f backup                    # actividad del servicio
+tail -f backups/backup.log                        # registro de cada copia
+# copia manual ahora:
+docker compose -f compose.yml -f compose.prod.yml run --rm --entrypoint /scripts/backup.sh backup
+# restaurar / verificar:
+./infra/backup/restaurar.sh
+./infra/backup/verificar.sh <carpeta>
 ```
+
+Detalle completo (cifrado, copia fuera del servidor, recuperación ante
+desastre): **[`docs/backups.md`](backups.md)**.
 
 ## Operación
 

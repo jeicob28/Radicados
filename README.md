@@ -57,6 +57,11 @@ Producción:
 npm run up:prod            # compose.yml + compose.prod.yml, en segundo plano
 ```
 
+En producción se levanta además el servicio `backup`: copia completa diaria
+(base de datos + documentos + configuración) a `./backups/`, con manifiesto,
+checksums, retención y scripts de restauración/verificación. Ver
+[`docs/backups.md`](docs/backups.md).
+
 ## Estructura
 
 ```
@@ -66,7 +71,8 @@ apps/
   web/      frontend React + Vite
 infra/
   nginx/    proxy inverso
-docs/       arquitectura, decisiones, fases
+  backup/   servicio de copias de seguridad (cron + scripts restaurar/verificar)
+docs/       arquitectura, decisiones, fases, backups
 compose.yml · compose.dev.yml · compose.prod.yml
 ```
 

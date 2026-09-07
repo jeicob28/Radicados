@@ -5,7 +5,8 @@
 # Antes de usar en un entorno real:
 #  - Definir secretos fuertes en .env (JWT_*, INTERNAL_TOKEN, AUDIT_EXPORT_SECRET, contraseñas).
 #  - Terminar TLS en el proxy o delante de él.
-#  - Configurar copias de seguridad de los volúmenes pgdata / miniodata (ver infra/backup).
+#  - Las copias de seguridad quedan activas solas con el servicio `backup`
+#    (cron diario 02:00 → ./backups/). Ver docs/backups.md.
 
 services:
   postgres:
@@ -41,3 +42,39 @@ services:
   proxy:
     restart: always
     mem_limit: 64m
+
+  # ── Copias de seguridad ──────────────────────────────────────────────────
+  # Cron interno: cada día a las 02:00 (BACKUP_CRON) hace pg_dump + espejo de
+  # MinIO + config, con manifiesto, checksums y retención. Habla con postgres
+  # y minio por la red de Docker (no usa el socket de Docker). Los archivos
+  # quedan en ./backups/ del propio servidor. Restaurar/verificar: los scripts
+  # infra/backup/restaurar.sh y infra/backup/verificar.sh. Ver docs/backups.md.
+  backup:
+    build:
+      context: ./infra/backup
+    restart: unless-stopped
+    mem_limit: 256m
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-radicados}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-radicados_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-radicados}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin_dev}
+      MINIO_BUCKET: ${MINIO_BUCKET:-radicados}
+      TZ: ${TZ:-America/Bogota}
+      BACKUP_CRON: ${BACKUP_CRON:-0 2 * * *}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+      BACKUP_MIN_FREE_MB: ${BACKUP_MIN_FREE_MB:-1500}
+      BACKUP_ON_START: ${BACKUP_ON_START:-0}
+      BACKUP_CONFIG_DIR: /proyecto
+      BACKUP_ENC_PASSPHRASE: ${BACKUP_ENC_PASSPHRASE:-}
+      BACKUP_OFFSITE_CMD: ${BACKUP_OFFSITE_CMD:-}
+      BACKUP_NOTIFY_URL: ${BACKUP_NOTIFY_URL:-}
+    volumes:
+      - ./backups:/backups
+      - ./.env:/proyecto/.env:ro
+      - ./compose.yml:/proyecto/compose.yml:ro
+      - ./compose.prod.yml:/proyecto/compose.prod.yml:ro
+    depends_on:
+      - postgres
+      - minio

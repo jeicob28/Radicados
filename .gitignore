@@ -14,3 +14,7 @@ coverage/
 .vscode/*
 !.vscode/extensions.json
 prisma/*.db
+
+# Copias de seguridad generadas por el servicio `backup` (contienen datos
+# y secretos — nunca al repositorio). Ver docs/backups.md.
+/backups/
