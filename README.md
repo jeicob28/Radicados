@@ -102,6 +102,7 @@ compose.yml · compose.dev.yml · compose.prod.yml
 | Contingencia | `contingencia/{incorporar,conciliacion}` |
 | Ciclo de vida | `transferencias` (`:n/{enviar,recibir,inventario}`) · `disposicion-final` (`:n/{aprobar,rechazar,ejecutar}`) |
 | Auditoría | `bitacora` `bitacora/verificacion` `bitacora/exportar` |
+| Ayuda | `ayuda/manuales` (`GET` todos · `POST`/`PATCH`/`DELETE` ADMIN) · `ayuda/manuales/:id/descargar` |
 
 ## Historia del proyecto
 

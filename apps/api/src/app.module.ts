@@ -27,6 +27,7 @@ import { TransferenciasModule } from './ciclo-vida/transferencias.module';
 import { DisposicionModule } from './ciclo-vida/disposicion.module';
 import { InternalModule } from './internal/internal.module';
 import { CopiasModule } from './copias/copias.module';
+import { AyudaModule } from './ayuda/ayuda.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
 import { MantenimientoGuard } from './common/mantenimiento.guard';
@@ -60,6 +61,7 @@ import { BitacoraInterceptor } from './common/interceptors/bitacora.interceptor'
     DisposicionModule,
     InternalModule,
     CopiasModule,
+    AyudaModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

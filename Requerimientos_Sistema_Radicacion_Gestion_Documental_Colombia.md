@@ -606,6 +606,10 @@ La referencia normativa principal para la función archivística es:
 > aplicabilidad de cada norma según la naturaleza jurídica de la
 > empresa.
 
+> **Actualización (2026-09-07):** el marco legal detallado (norma por norma,
+> qué exige y cómo lo cumple el SGDEA) está publicado dentro de la aplicación
+> en el menú **Marco legal**, visible para todos los roles. Ver §21.4.
+
 ------------------------------------------------------------------------
 
 # 16. Consideración importante sobre el Acuerdo 060 de 2001
@@ -1135,3 +1139,44 @@ end-to-end (job encolado → watcher → `2026-…_…/` con manifiesto, cadena
 devuelve 503 a un FUNCIONARIO y 200 al ADMIN, y se auto-libera; la cadena
 de la bitácora sigue íntegra tras todo el ciclo (186/186). Builds de API y
 `web` limpios, Jest en verde.
+
+## 21.4 2026-09-07 — Marco legal y centro de ayuda en la aplicación
+
+**Solicitado por:** el usuario ("un apartado del marco legal y normativa con
+la normativa que desarrolla el aplicativo y está soportado legalmente, que
+todos puedan ver" + "el apartado de ayuda para subir los manuales").
+
+**Qué se implementó:**
+
+- **Marco legal** (`/marco-legal`, menú visible para **todos los roles**,
+  `apps/web/src/pages/MarcoLegal.tsx`): página informativa, contenido curado
+  y estático. Norma principal (Acuerdo 001 de 2024 del AGN) + normativa
+  relacionada agrupada (función archivística; documento y firma electrónica;
+  transparencia; derecho de petición y términos; protección de datos; MIPG y
+  seguridad; normas técnicas ISO/MoReq/NTC; marco cooperativo y de transporte
+  propio de Cootracir), cada norma con "qué regula" y "cómo se refleja en el
+  SGDEA", y una nota sobre aplicabilidad (Cootracir es cooperativa del sector
+  solidario, no entidad pública → buena parte se adopta como buena práctica;
+  se recomienda matriz normativa con Jurídica). Amplía el cap. 15.
+- **Ayuda** (`/ayuda`, menú visible para **todos**,
+  `apps/web/src/pages/Ayuda.tsx` + `apps/api/src/ayuda/ayuda.module.ts`):
+  - Enlace al **manual en línea** (Artifact), configurable por el ADMIN
+    (`PATCH /ayuda/manual-url`, parámetro `ayuda.manual_url`).
+  - **Documentos y manuales**: el ADMIN sube archivos (`POST /ayuda/manuales`,
+    PDF/Word/HTML/texto/imagen, ≤ 25 MB) → se guardan en MinIO bajo `ayuda/`,
+    el índice va en el parámetro `ayuda.manuales` (sin migración). Cualquier
+    usuario autenticado los **lista y descarga** (`GET /ayuda/manuales`,
+    `GET /ayuda/manuales/:id/descargar`). ADMIN puede renombrar y eliminar.
+    Entran en la copia de seguridad (están en MinIO + la BD).
+  - Bloque de "primeros pasos" y enlace al marco legal.
+
+**Decisiones:** contenido del marco legal **estático y curado** (no editable
+por pantalla) para no arriesgar exactitud jurídica; subir/quitar manuales es
+**solo ADMIN**, verlos y descargarlos es de **todos**; sin tabla nueva de BD
+(índice en `parametro`, archivos en el bucket existente).
+
+**Verificado (stack local, contenedores):** subida de un documento por ADMIN
+(201, guardado en MinIO), listado y descarga por un FUNCIONARIO (200, PDF
+íntegro), FUNCIONARIO no puede subir (403), ADMIN elimina (200, se borra de
+MinIO). Builds de API y `web` limpios, Jest 8/8. Manual (Artifact) ampliado
+con secciones comunes "Ayuda y manuales" y "Marco legal y normativa".

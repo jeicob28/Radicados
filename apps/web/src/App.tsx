@@ -20,6 +20,8 @@ import Bandeja from './pages/Bandeja';
 import { ExpedienteDetalle, ExpedientesLista } from './pages/Expedientes';
 import Bitacora from './pages/Bitacora';
 import Reportes from './pages/Reportes';
+import Ayuda from './pages/Ayuda';
+import MarcoLegal from './pages/MarcoLegal';
 import Usuarios from './pages/admin/Usuarios';
 import Roles from './pages/admin/Roles';
 import Dependencias from './pages/admin/Dependencias';
@@ -35,6 +37,8 @@ const NAV = [
   { to: '/expedientes', label: 'Expedientes', icon: '▦', roles: [] },
   { to: '/reportes', label: 'Reportes', icon: '▧', roles: ['JEFE', 'RADICADOR', 'AUDITOR', 'ARCHIVISTA'] },
   { to: '/bitacora', label: 'Auditoría', icon: '⛨', roles: ['AUDITOR'] },
+  { to: '/ayuda', label: 'Ayuda', icon: '?', roles: [] },
+  { to: '/marco-legal', label: 'Marco legal', icon: '§', roles: [] },
 ];
 
 const NAV_ADMIN = [
@@ -164,6 +168,8 @@ function Privado() {
         <Route path="/expedientes/:numero" element={<ExpedienteDetalle />} />
         <Route path="/reportes" element={<Reportes />} />
         <Route path="/bitacora" element={<Bitacora />} />
+        <Route path="/ayuda" element={<Ayuda />} />
+        <Route path="/marco-legal" element={<MarcoLegal />} />
         <Route path="/admin/usuarios" element={<SoloAdmin><Usuarios /></SoloAdmin>} />
         <Route path="/admin/roles" element={<SoloAdmin><Roles /></SoloAdmin>} />
         <Route path="/admin/dependencias" element={<SoloAdmin><Dependencias /></SoloAdmin>} />
