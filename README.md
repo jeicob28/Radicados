@@ -59,7 +59,9 @@ npm run up:prod            # compose.yml + compose.prod.yml, en segundo plano
 
 En producción se levanta además el servicio `backup`: copia completa diaria
 (base de datos + documentos + configuración) a `./backups/`, con manifiesto,
-checksums, retención y scripts de restauración/verificación. Ver
+checksums, retención y scripts de restauración/verificación. El ADMIN puede
+además lanzar, descargar, importar y restaurar copias desde la propia
+aplicación (*Administración › Copias de seguridad*). Ver
 [`docs/backups.md`](docs/backups.md).
 
 ## Estructura
@@ -91,7 +93,7 @@ compose.yml · compose.dev.yml · compose.prod.yml
 | Área | Endpoints |
 |---|---|
 | Autenticación | `auth/login` `auth/refresh` `auth/logout` `auth/me` `auth/cambiar-password` `auth/mfa/*` |
-| Administración | `usuarios` (+ `:id/password`, `:id/reset-password`, `:id/cerrar-sesiones`) · `roles` · `dependencias` (+ `:id` con su personal) · `terceros` · `parametros` |
+| Administración | `usuarios` (+ `:id/password`, `:id/reset-password`, `:id/cerrar-sesiones`) · `roles` · `dependencias` (+ `:id` con su personal) · `terceros` · `parametros` · `copias` (listar/`ejecutar`/`:c/paquete`/`:c/restaurar`/`importar`/`mantenimiento`) |
 | Radicación | `radicados` (`POST`=radicar) · `radicados/adjuntos` · `radicados/:n/{anulacion,trazabilidad}` · `consecutivos` |
 | Seguimiento | `radicados/:n/{asignar,aceptar,trasladar,reasignar,devolver,cerrar,reabrir}` · `bandeja` · `seguimiento/{vencimientos,indicadores}` · `notificaciones` |
 | Gestión documental | `trd` `series` `subseries` `tipos-documentales` · `expedientes` (`:n/{documentos,foliar,cerrar,indice,verificar-integridad}`) · `radicados/:n/clasificar` |

@@ -80,17 +80,22 @@ Ya quedan **activas solas** con el overlay de producción: el servicio
 configuración) cada día a las 02:00 en `./backups/`, con manifiesto,
 checksums y retención de 14 días. No hay que tocar `cron` en el servidor.
 
+El ADMIN también puede lanzar una copia, **descargarla**, importarla o
+**restaurar** desde la propia aplicación: *Administración › Copias de
+seguridad* (el servicio `backup` incluye un watcher que atiende esas
+peticiones por una cola en `./backups/.control/`).
+
 ```bash
 docker compose logs -f backup                    # actividad del servicio
 tail -f backups/backup.log                        # registro de cada copia
 # copia manual ahora:
 docker compose -f compose.yml -f compose.prod.yml run --rm --entrypoint /scripts/backup.sh backup
-# restaurar / verificar:
+# restaurar / verificar por consola (recuperación ante desastre):
 ./infra/backup/restaurar.sh
 ./infra/backup/verificar.sh <carpeta>
 ```
 
-Detalle completo (cifrado, copia fuera del servidor, recuperación ante
+Detalle completo (panel, cifrado, copia fuera del servidor, recuperación ante
 desastre): **[`docs/backups.md`](backups.md)**.
 
 ## Operación

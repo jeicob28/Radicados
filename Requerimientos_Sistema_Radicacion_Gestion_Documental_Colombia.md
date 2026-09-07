@@ -1078,3 +1078,60 @@ la acción, no al subir el archivo).
   funcionario antes de cerrar, o que ciertos tipos de comunicación
   (p. ej. derechos de petición) obliguen a la variante 2, es un
   requerimiento nuevo a validar aparte.
+
+## 21.3 2026-09-07 — Copias de seguridad operables desde el panel
+
+**Solicitado por:** el usuario ("créame un sistema para generar las copias
+de seguridad… y si me creas dentro del segmento de administración, para
+poder realizar la copia y exportarla y en caso tal si toca restaurar se
+pueda realizar desde allí mismo").
+
+**Contexto:** ya existía el servicio `backup` (copia diaria automática a
+`./backups/` + scripts de consola `restaurar.sh` / `verificar.sh`, ver
+§ del capítulo de despliegue y `docs/backups.md`). Faltaba que el ADMIN
+pudiera operarlo sin entrar por SSH al servidor.
+
+**Qué se implementó:**
+
+- Módulo **Administración › Copias de seguridad** (solo ADMIN):
+  - **Hacer copia ahora** — lanza una copia completa (base + documentos +
+    configuración) igual que la del cron.
+  - **Descargar** — baja la copia como un único `.tar` para guardarla
+    fuera del servidor.
+  - **Importar copia (.tar)** — sube un paquete descargado antes y lo
+    deja disponible para restaurar.
+  - **Restaurar** — sobrescribe los datos actuales con los de la copia
+    (base y/o documentos). Exige escribir `RESTAURAR`; si la copia está
+    cifrada pide la frase.
+  - **Eliminar** una copia; **activar / salir de mantenimiento** a mano.
+- **Modo mantenimiento** (`parámetro sistema.mantenimiento` + guard
+  global): mientras está activo, todo usuario que no sea ADMIN recibe
+  `503 { mantenimiento: true }` y la SPA muestra una pantalla de
+  "Sistema en mantenimiento" que se reintenta sola. Se activa
+  automáticamente al iniciar una restauración y se libera al terminar
+  (o al restaurar la base, que borra el propio parámetro).
+
+**Decisiones de diseño validadas:**
+
+| Punto | Decisión |
+|---|---|
+| ¿La API ejecuta `pg_dump`/`pg_restore`? | **No.** Deja la petición como un archivo JSON en `./backups/.control/queue/` y el servicio `backup` (un *watcher* nuevo junto al cron) la ejecuta y publica el resultado en `./backups/.control/estado.json`. La API solo lee/escribe esa carpeta compartida. Sigue **sin** socket de Docker. |
+| ¿Restauración desde el panel = la de consola? | **No exactamente.** La de consola (`restaurar.sh`) para `api`/`worker` y recrea la base; el panel no puede parar contenedores, así que cierra las conexiones, hace `DROP SCHEMA public CASCADE` + `pg_restore` con la app arriba (que responde 503 por el mantenimiento). Para recuperación ante desastre total se sigue usando `restaurar.sh`. |
+| ¿Qué rol? | **Solo ADMIN**, como el resto de Administración. |
+| ¿Se puede volver atrás de una restauración? | No automáticamente: se recomienda "Hacer copia ahora" antes de restaurar (se avisa en el modal). |
+
+**Componentes:** `apps/api/src/copias/copias.module.ts` (endpoints
+`/copias*`), `apps/api/src/common/mantenimiento.guard.ts`,
+`apps/web/src/pages/admin/Copias.tsx`, `infra/backup/watcher.sh` +
+`infra/backup/restore.sh` (nuevos), `entrypoint.sh` (arranca el watcher),
+`compose.yml` (monta `./backups` también en `api`). Acción de bitácora
+nueva: `RESTAURAR`.
+
+**Verificado (stack de producción local, contenedores):** copia manual
+end-to-end (job encolado → watcher → `2026-…_…/` con manifiesto, cadena
+181/181 íntegra); descarga del `.tar` y de artefactos sueltos; restauración
+`todo` (esquema vaciado, `pg_restore`, radicados=21, cadena 181/181,
+21 objetos a MinIO, API se recupera sola); el guard de mantenimiento
+devuelve 503 a un FUNCIONARIO y 200 al ADMIN, y se auto-libera; la cadena
+de la bitácora sigue íntegra tras todo el ciclo (186/186). Builds de API y
+`web` limpios, Jest en verde.

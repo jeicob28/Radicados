@@ -30,6 +30,14 @@ services:
     logging:
       driver: json-file
       options: { max-size: "10m", max-file: "5" }
+    # El panel "Copias de seguridad" muestra esta configuración y avisa si las
+    # copias están cifradas antes de restaurar.
+    environment:
+      BACKUP_CRON: ${BACKUP_CRON:-0 2 * * *}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+      BACKUP_MIN_FREE_MB: ${BACKUP_MIN_FREE_MB:-1500}
+      BACKUP_ENC_PASSPHRASE: ${BACKUP_ENC_PASSPHRASE:-}
+      BACKUP_OFFSITE_CMD: ${BACKUP_OFFSITE_CMD:-}
 
   worker:
     restart: always
@@ -47,8 +55,12 @@ services:
   # Cron interno: cada día a las 02:00 (BACKUP_CRON) hace pg_dump + espejo de
   # MinIO + config, con manifiesto, checksums y retención. Habla con postgres
   # y minio por la red de Docker (no usa el socket de Docker). Los archivos
-  # quedan en ./backups/ del propio servidor. Restaurar/verificar: los scripts
-  # infra/backup/restaurar.sh y infra/backup/verificar.sh. Ver docs/backups.md.
+  # quedan en ./backups/ del propio servidor.
+  # Además atiende (watcher) las peticiones de copia/restauración que el ADMIN
+  # lanza desde el panel (Administración › Copias de seguridad), por una cola
+  # de archivos en ./backups/.control/ compartida con la API.
+  # Restaurar/verificar por consola: infra/backup/restaurar.sh y verificar.sh.
+  # Ver docs/backups.md.
   backup:
     build:
       context: ./infra/backup

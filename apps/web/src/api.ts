@@ -16,6 +16,27 @@ export function onAuthChange(l: () => void) {
   return () => listeners.delete(l);
 }
 
+// ---- modo mantenimiento (la API responde 503 con { mantenimiento: true }) ----
+let enMantenimiento = false;
+let motivoMantenimiento = '';
+const mantListeners = new Set<() => void>();
+export function mantenimientoActivo() {
+  return enMantenimiento;
+}
+export function mantenimientoMotivo() {
+  return motivoMantenimiento;
+}
+export function onMantenimiento(l: () => void) {
+  mantListeners.add(l);
+  return () => mantListeners.delete(l);
+}
+function setMantenimiento(activo: boolean, motivo = '') {
+  if (activo === enMantenimiento && motivo === motivoMantenimiento) return;
+  enMantenimiento = activo;
+  motivoMantenimiento = motivo;
+  mantListeners.forEach((l) => l());
+}
+
 const BASE = '/api/v1';
 
 export class ApiError extends Error {
@@ -43,6 +64,11 @@ export async function api<T = unknown>(path: string, init: RequestInit = {}): Pr
   const res = await raw(path, init);
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;
+  if (res.status === 503 && data?.mantenimiento) {
+    setMantenimiento(true, typeof data.message === 'string' ? data.message : '');
+  } else if (res.ok) {
+    setMantenimiento(false);
+  }
   if (!res.ok) {
     const msg = data?.message
       ? Array.isArray(data.message)

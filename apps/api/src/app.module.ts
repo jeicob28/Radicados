@@ -26,8 +26,10 @@ import { ContingenciaModule } from './contingencia/contingencia.module';
 import { TransferenciasModule } from './ciclo-vida/transferencias.module';
 import { DisposicionModule } from './ciclo-vida/disposicion.module';
 import { InternalModule } from './internal/internal.module';
+import { CopiasModule } from './copias/copias.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
+import { MantenimientoGuard } from './common/mantenimiento.guard';
 import { BitacoraInterceptor } from './common/interceptors/bitacora.interceptor';
 
 @Module({
@@ -57,10 +59,12 @@ import { BitacoraInterceptor } from './common/interceptors/bitacora.interceptor'
     TransferenciasModule,
     DisposicionModule,
     InternalModule,
+    CopiasModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: MantenimientoGuard },
     { provide: APP_INTERCEPTOR, useClass: BitacoraInterceptor },
   ],
 })

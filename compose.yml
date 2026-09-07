@@ -78,6 +78,13 @@ services:
       AUDIT_EXPORT_SECRET: ${AUDIT_EXPORT_SECRET:-dev_audit_secret_change_me}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-Admin2026*Cambiar}
       TZ: ${TZ:-America/Bogota}
+      # Carpeta compartida con el servicio `backup`: la API lista/descarga las
+      # copias y deja aquí las peticiones de copia/restauración del panel
+      # (Administración › Copias de seguridad). El servicio que las ejecuta solo
+      # corre con compose.prod.yml.
+      BACKUP_DEST: /backups
+    volumes:
+      - ./backups:/backups
     depends_on:
       postgres:
         condition: service_healthy

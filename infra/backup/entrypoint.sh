@@ -1,5 +1,6 @@
 #!/bin/bash
-# Arranque del servicio de backup: programa el cron y lo deja corriendo.
+# Arranque del servicio de backup: programa el cron y deja corriendo el
+# "watcher" que atiende las peticiones hechas desde el panel de la aplicación.
 #   BACKUP_CRON       expresión cron (por defecto "0 2 * * *")
 #   BACKUP_ON_START   si es "1", hace una copia al arrancar
 set -euo pipefail
@@ -26,4 +27,8 @@ if [ "${BACKUP_ON_START:-0}" = "1" ]; then
 fi
 
 echo "[backup] cron en marcha; los registros van a ${BACKUP_DEST}/backup.log y a 'docker compose logs backup'"
-exec crond -f -d 8
+
+# cron programado en segundo plano; el watcher (peticiones del panel) queda al frente.
+crond -b -d 8
+echo "[backup] watcher de peticiones del panel en marcha (${BACKUP_DEST}/.control)"
+exec /scripts/watcher.sh

@@ -47,6 +47,35 @@ docker compose logs -f backup            # actividad del servicio
 tail -f backups/backup.log               # registro de cada copia
 ```
 
+## Desde la aplicación (Administración › Copias de seguridad)
+
+El ADMIN tiene en el panel un módulo **Copias de seguridad** para operar sin
+entrar por consola al servidor:
+
+| Acción | Qué hace |
+|---|---|
+| **Hacer copia ahora** | Lanza una copia completa igual que la del cron. Aparece en la lista al terminar. |
+| **Descargar** | Baja la copia como un único `.tar` (`sgdea-<fecha>.tar`) para guardarla fuera del servidor. |
+| **Importar copia (.tar)** | Sube un `.tar` descargado antes y lo deja disponible para restaurar. |
+| **Restaurar** | Sobrescribe los datos actuales con los de la copia elegida (base y/o documentos). Pide escribir `RESTAURAR`; si la copia está cifrada, pide la frase. |
+| **Activar / salir de mantenimiento** | Bloquea temporalmente a los usuarios que no son ADMIN (503). Se activa solo durante una restauración y se libera al terminar. |
+| **Eliminar** | Borra una copia del servidor. |
+
+Cómo encaja con el servicio:
+
+- La API **no** ejecuta `pg_dump` / `pg_restore` ni usa el socket de Docker.
+  Deja la petición en `./backups/.control/queue/` y el servicio `backup`
+  (watcher) la procesa y publica el resultado en `./backups/.control/estado.json`.
+- Por eso el botón *Hacer copia ahora* solo funciona con el overlay de
+  producción levantado (es el que trae el servicio `backup`). El panel avisa si
+  el servicio está inactivo.
+- La **restauración desde el panel** no puede parar contenedores: cierra las
+  conexiones a la base, vacía el esquema `public` y hace `pg_restore` con la
+  aplicación arriba (que responde 503 por el modo mantenimiento mientras dura).
+  Para una recuperación ante desastre completa se sigue usando
+  `infra/backup/restaurar.sh` desde el servidor.
+- Todas estas acciones quedan en la **bitácora** (`copia` / `sistema`).
+
 ## Configuración (`.env`, todo opcional)
 
 | Variable | Por defecto | Para qué |

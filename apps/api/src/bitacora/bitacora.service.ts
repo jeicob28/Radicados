@@ -13,6 +13,7 @@ export type AccionBitacora =
   | 'REASIGNAR'
   | 'TRASLADAR'
   | 'RESPONDER'
+  | 'RESTAURAR'
   | 'CAMBIAR_ESTADO'
   | 'DESCARGAR'
   | 'EXPORTAR'

@@ -5,12 +5,13 @@
 FROM postgres:16-alpine
 
 # bash para los scripts, tzdata para que el cron respete America/Bogota,
-# mc (cliente de MinIO) para copiar los objetos. crond lo trae busybox.
-RUN apk add --no-cache bash tzdata curl openssl coreutils \
+# jq para leer la cola de trabajos que deja la API, mc (cliente de MinIO)
+# para copiar los objetos. crond lo trae busybox.
+RUN apk add --no-cache bash tzdata curl openssl coreutils jq \
  && curl -fsSL https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc \
  && chmod +x /usr/local/bin/mc
 
-COPY backup.sh entrypoint.sh /scripts/
+COPY backup.sh restore.sh watcher.sh entrypoint.sh /scripts/
 RUN chmod +x /scripts/*.sh
 
 ENV BACKUP_DEST=/backups \

@@ -8,7 +8,7 @@ import {
   useLocation,
 } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth';
-import { api } from './api';
+import { api, mantenimientoActivo, mantenimientoMotivo, onMantenimiento } from './api';
 import Login from './pages/Login';
 import CambiarPasswordForzado from './pages/CambiarPasswordForzado';
 import Dashboard from './pages/Dashboard';
@@ -23,6 +23,7 @@ import Reportes from './pages/Reportes';
 import Usuarios from './pages/admin/Usuarios';
 import Roles from './pages/admin/Roles';
 import Dependencias from './pages/admin/Dependencias';
+import Copias from './pages/admin/Copias';
 
 const NAV = [
   { to: '/', label: 'Panel', icon: '▤', roles: [] as string[] },
@@ -40,6 +41,7 @@ const NAV_ADMIN = [
   { to: '/admin/usuarios', label: 'Usuarios', icon: '◍' },
   { to: '/admin/roles', label: 'Roles', icon: '◈' },
   { to: '/admin/dependencias', label: 'Dependencias', icon: '◫' },
+  { to: '/admin/copias', label: 'Copias de seguridad', icon: '⛁' },
 ];
 
 function Layout({ children }: { children: React.ReactNode }) {
@@ -111,11 +113,45 @@ function SoloVentanilla({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function useMantenimiento() {
+  const [, tick] = useState(0);
+  useEffect(() => onMantenimiento(() => tick((n) => n + 1)), []);
+  return { activo: mantenimientoActivo(), motivo: mantenimientoMotivo() };
+}
+
+function PantallaMantenimiento({ motivo }: { motivo: string }) {
+  useEffect(() => {
+    const t = setInterval(() => {
+      api('/notificaciones/contador')
+        .then(() => location.reload())
+        .catch(() => undefined);
+    }, 15000);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <div className="login-wrap">
+      <div className="card" style={{ maxWidth: 460, textAlign: 'center' }}>
+        <img src="/cootracir.png" alt="Cootracir" className="marca-logo" style={{ margin: '0 auto 12px' }} />
+        <h2>Sistema en mantenimiento</h2>
+        <p className="vacio">
+          {motivo || 'Se está realizando una tarea de administración. Vuelve a intentarlo en unos minutos.'}
+        </p>
+        <button className="btn ghost" onClick={() => location.reload()}>
+          Reintentar
+        </button>
+      </div>
+      <PieDePagina compacto />
+    </div>
+  );
+}
+
 function Privado() {
   const { usuario, cargando } = useAuth();
+  const mant = useMantenimiento();
   if (cargando) return <div className="loading">Cargando…</div>;
   if (!usuario) return <Navigate to="/login" replace />;
   if (usuario.debeCambiarPassword) return <CambiarPasswordForzado />;
+  if (mant.activo && !usuario.roles.includes('ADMIN')) return <PantallaMantenimiento motivo={mant.motivo} />;
   return (
     <Layout>
       <Routes>
@@ -131,6 +167,7 @@ function Privado() {
         <Route path="/admin/usuarios" element={<SoloAdmin><Usuarios /></SoloAdmin>} />
         <Route path="/admin/roles" element={<SoloAdmin><Roles /></SoloAdmin>} />
         <Route path="/admin/dependencias" element={<SoloAdmin><Dependencias /></SoloAdmin>} />
+        <Route path="/admin/copias" element={<SoloAdmin><Copias /></SoloAdmin>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>
