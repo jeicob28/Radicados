@@ -42,6 +42,10 @@ function flatten(nodos: DepNodo[], nivel = 0): { id: string; label: string }[] {
 export default function Radicar() {
   const nav = useNavigate();
   const deps = useAsync(() => api<DepNodo[]>('/dependencias'), []);
+  const plazos = useAsync(
+    () => api<{ valor: Record<string, number> }>('/parametros/plazos.dias_habiles'),
+    [],
+  );
   const [form, setForm] = useState({
     tipo: 'ENT',
     canal: 'WEB',
@@ -137,7 +141,7 @@ export default function Radicar() {
           <Field label="Canal">
             <select value={form.canal} onChange={(e) => set('canal', e.target.value)}>
               {CANALES.map((c) => (
-                <option key={c}>{c}</option>
+                <option key={c} value={c}>{c}</option>
               ))}
             </select>
           </Field>
@@ -146,13 +150,20 @@ export default function Radicar() {
             <input value={form.asunto} onChange={(e) => set('asunto', e.target.value)} required minLength={4} />
           </Field>
 
-          <Field label="Tipo de comunicación">
+          <Field
+            label="Tipo de comunicación"
+            hint={
+              form.tipo === 'ENT' && plazos.data?.valor?.[form.tipoComunicacion] != null
+                ? `Plazo legal de respuesta: ${plazos.data.valor[form.tipoComunicacion]} días hábiles (el sistema calcula la fecha de vencimiento al radicar)`
+                : undefined
+            }
+          >
             <select
               value={form.tipoComunicacion}
               onChange={(e) => set('tipoComunicacion', e.target.value)}
             >
               {TIPOS_COM.map((t) => (
-                <option key={t}>{t.replace(/_/g, ' ')}</option>
+                <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>
               ))}
             </select>
           </Field>

@@ -3,7 +3,7 @@ import { Type } from 'class-transformer';
 import {
   IsArray,
   IsDateString,
-  IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -48,11 +48,11 @@ export class AdjuntoRefDto {
 
 export class RadicarDto {
   @ApiProperty({ enum: TIPOS_CONSECUTIVO, default: 'ENT' })
-  @IsEnum(TIPOS_CONSECUTIVO)
+  @IsIn(TIPOS_CONSECUTIVO as unknown as string[])
   tipo!: (typeof TIPOS_CONSECUTIVO)[number];
 
   @ApiProperty({ enum: CANALES })
-  @IsEnum(CANALES)
+  @IsIn(CANALES as unknown as string[])
   canal!: (typeof CANALES)[number];
 
   @ApiPropertyOptional({ description: 'Tercero remitente (entrada) o destinatario (salida)' })
@@ -77,7 +77,7 @@ export class RadicarDto {
 
   @ApiPropertyOptional({ enum: TIPOS_COMUNICACION, default: 'GENERAL' })
   @IsOptional()
-  @IsEnum(TIPOS_COMUNICACION)
+  @IsIn(TIPOS_COMUNICACION as unknown as string[])
   tipoComunicacion?: (typeof TIPOS_COMUNICACION)[number];
 
   @ApiPropertyOptional() @IsOptional() @IsString() medioRespuesta?: string;
