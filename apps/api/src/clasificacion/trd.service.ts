@@ -34,6 +34,7 @@ export class TrdService {
       id: s.id,
       codigo: s.codigo,
       nombre: s.nombre,
+      dependenciaId: s.dependenciaId,
       dependencia: s.dependencia,
       trd: {
         archivoGestion: s.retencionArchivoGestion,

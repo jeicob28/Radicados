@@ -293,3 +293,13 @@ main > .pie { margin-top: 40px; }
 .kpi-meta.mal { color: var(--crit); }
 .g-migas { display: flex; gap: 6px; align-items: center; font-size: 0.85rem; margin-bottom: 12px; flex-wrap: wrap; }
 .g-migas button { background: none; border: 0; color: var(--accent); cursor: pointer; font: inherit; padding: 0; }
+
+/* ---------- clasificación archivística (TRD) ---------- */
+.trd-resumen {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 12px; margin: 4px 0 12px; display: flex; flex-direction: column; gap: 6px;
+  font-size: 0.85rem;
+}
+.trd-resumen > div { display: flex; gap: 8px; justify-content: space-between; align-items: baseline; }
+.trd-resumen .trd-k { color: var(--muted); white-space: nowrap; }
+.radio-inline { display: inline-flex; align-items: center; gap: 6px; font-size: 0.88rem; cursor: pointer; }

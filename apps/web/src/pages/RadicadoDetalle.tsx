@@ -2,7 +2,13 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api, blobUrl, download } from '../api';
 import { useAuth } from '../auth';
-import { Alerta, Boton, Card, EstadoPill, ErrorMsg, Modal, fechaCorta, fechaHora, useAsync } from '../ui';
+import { Alerta, Boton, Card, EstadoPill, ErrorMsg, Field, Modal, fechaCorta, fechaHora, useAsync } from '../ui';
+import {
+  SelectorSerieSubserie,
+  codigoClasificacion,
+  useCuadroClasificacion,
+  validarClasificacion,
+} from '../components/Clasificacion';
 
 const NOMBRE_FIRMA = 'firma-recepcion.png';
 
@@ -281,7 +287,15 @@ export default function RadicadoDetalle() {
           onDone={() => { setAccion(null); recargar(); }}
         />
       )}
-      {accion && accion !== 'responder' && accion !== 'comunicado' && (
+      {accion === 'clasificar' && (
+        <ClasificarModal
+          numero={r.numero}
+          dependenciaId={r.dependenciaId ?? undefined}
+          onClose={() => setAccion(null)}
+          onDone={() => { setAccion(null); recargar(); }}
+        />
+      )}
+      {accion && !['responder', 'comunicado', 'clasificar'].includes(accion) && (
         <AccionModal
           accion={accion}
           numero={r.numero}
@@ -454,6 +468,132 @@ function ComunicadoModal({
   );
 }
 
+/**
+ * Clasificación archivística del radicado según la norma (Acuerdo 001 de 2024):
+ * serie → subserie (obligatoria si la serie tiene subseries) y destino en un
+ * expediente nuevo o en uno abierto de la misma clasificación.
+ */
+function ClasificarModal({
+  numero,
+  dependenciaId,
+  onClose,
+  onDone,
+}: {
+  numero: string;
+  dependenciaId?: string;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const cuadro = useCuadroClasificacion();
+  const [serieId, setSerieId] = useState('');
+  const [subserieId, setSubserieId] = useState('');
+  const [destino, setDestino] = useState<'nuevo' | 'existente'>('nuevo');
+  const [titulo, setTitulo] = useState('');
+  const [expedienteNumero, setExpedienteNumero] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+
+  const serie = cuadro.data?.find((s) => s.id === serieId) ?? null;
+  const subserie = serie?.subseries.find((ss) => ss.id === subserieId) ?? null;
+
+  const abiertos = useAsync<{ numero: string; titulo: string; subserie: { codigo: string } | null }[]>(
+    () => (serieId ? api(`/expedientes?estado=ABIERTO&serieId=${serieId}`) : Promise.resolve([])),
+    [serieId],
+  );
+  const candidatos = (abiertos.data ?? []).filter(
+    (e) => !subserieId || e.subserie?.codigo === subserie?.codigo,
+  );
+
+  const submit = async () => {
+    setError(null);
+    const problema = validarClasificacion(serie, subserie);
+    if (problema) return setError(problema);
+    const body: Record<string, unknown> = { serieId, subserieId: subserieId || undefined };
+    if (destino === 'existente') {
+      if (!expedienteNumero) return setError('Seleccione el expediente al que se incorpora.');
+      body.expedienteNumero = expedienteNumero;
+    } else {
+      if (titulo.trim().length < 4) return setError('El título del expediente nuevo debe tener al menos 4 caracteres.');
+      body.nuevoExpedienteTitulo = titulo.trim();
+    }
+    setEnviando(true);
+    try {
+      await api(`/radicados/${numero}/clasificar`, { method: 'POST', body: JSON.stringify(body) });
+      onDone();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  return (
+    <Modal title={`Clasificar radicado ${numero}`} onClose={onClose}>
+      <SelectorSerieSubserie
+        cuadro={cuadro.data}
+        cargando={cuadro.cargando}
+        serieId={serieId}
+        subserieId={subserieId}
+        onSerie={(id) => { setSerieId(id); setExpedienteNumero(''); setDestino('nuevo'); }}
+        onSubserie={(id) => { setSubserieId(id); setExpedienteNumero(''); setDestino('nuevo'); }}
+        dependenciaFiltroId={dependenciaId}
+      />
+
+      {serie && (
+        <Field label="Destino">
+          <div className="chips">
+            <label className="radio-inline">
+              <input type="radio" checked={destino === 'nuevo'} onChange={() => setDestino('nuevo')} />
+              Expediente nuevo
+            </label>
+            <label className="radio-inline">
+              <input
+                type="radio"
+                checked={destino === 'existente'}
+                onChange={() => setDestino('existente')}
+                disabled={!candidatos.length}
+              />
+              Incorporar a uno abierto {candidatos.length ? `(${candidatos.length})` : '(no hay)'}
+            </label>
+          </div>
+        </Field>
+      )}
+
+      {serie && destino === 'nuevo' && (
+        <Field
+          label="Título del expediente nuevo"
+          hint={`Se abrirá como ${codigoClasificacion(serie, subserie)} — ${subserie ? subserie.nombre : serie.nombre}`}
+        >
+          <input value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Asunto o nombre del expediente" />
+        </Field>
+      )}
+
+      {serie && destino === 'existente' && (
+        <Field label="Expediente abierto">
+          <select value={expedienteNumero} onChange={(e) => setExpedienteNumero(e.target.value)}>
+            <option value="">— seleccione —</option>
+            {candidatos.map((e) => (
+              <option key={e.numero} value={e.numero}>
+                {e.numero} · {e.titulo}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
+
+      {error && <ErrorMsg>{error}</ErrorMsg>}
+      <div className="modal-acciones">
+        <Boton variante="ghost" onClick={onClose}>
+          Cancelar
+        </Boton>
+        <Boton onClick={submit} disabled={enviando}>
+          {enviando ? '…' : 'Clasificar'}
+        </Boton>
+      </div>
+    </Modal>
+  );
+}
+
 function AccionModal({
   accion,
   numero,
@@ -480,11 +620,10 @@ function AccionModal({
     nodos.flatMap((n) => [{ id: n.id, label: `${n.codigo} · ${n.nombre}` }, ...flat(n.hijos)]);
 
   const cfg: Record<
-    Exclude<AccionId, 'responder' | 'comunicado'>,
+    Exclude<AccionId, 'responder' | 'comunicado' | 'clasificar'>,
     { titulo: string; path: string; campos: string[] }
   > = {
     asignar: { titulo: 'Asignar radicado', path: `/radicados/${numero}/asignar`, campos: ['dependenciaId', 'funcionarioId', 'observacion'] },
-    clasificar: { titulo: 'Clasificar', path: `/radicados/${numero}/clasificar`, campos: ['serieId', 'nuevoExpedienteTitulo'] },
     aceptar: { titulo: 'Aceptar trámite', path: `/radicados/${numero}/aceptar`, campos: ['observacion'] },
     trasladar: { titulo: 'Trasladar', path: `/radicados/${numero}/trasladar`, campos: ['dependenciaId', 'funcionarioId', 'motivo'] },
     devolver: { titulo: 'Devolver', path: `/radicados/${numero}/devolver`, campos: ['motivo'] },
@@ -492,13 +631,8 @@ function AccionModal({
     reabrir: { titulo: 'Reabrir', path: `/radicados/${numero}/reabrir`, campos: ['motivo'] },
     anular: { titulo: 'Anular radicado', path: `/radicados/${numero}/anulacion`, campos: ['motivo', 'justificacion'] },
   };
-  const c = cfg[accion as Exclude<AccionId, 'responder' | 'comunicado'>];
+  const c = cfg[accion as Exclude<AccionId, 'responder' | 'comunicado' | 'clasificar'>];
   const [evidencias, setEvidencias] = useState<File[]>([]);
-
-  const series = useAsync<{ id: string; codigo: string; nombre: string }[]>(
-    () => (accion === 'clasificar' ? api('/series') : Promise.resolve([])),
-    [],
-  );
 
   // dependencia cuyo personal debe listarse en el selector de funcionario:
   // la elegida en el propio formulario (asignar/trasladar) o, si no aplica, la dependencia actual del radicado (reasignar)
@@ -533,8 +667,6 @@ function AccionModal({
     observacion: 'Observación',
     motivo: 'Motivo',
     justificacion: 'Justificación',
-    serieId: 'Serie documental',
-    nuevoExpedienteTitulo: 'Título del expediente nuevo',
   };
 
   return (
@@ -560,15 +692,6 @@ function AccionModal({
               {(personal.data ?? []).map((u) => (
                 <option key={u.id} value={u.id}>
                   {u.nombre}
-                </option>
-              ))}
-            </select>
-          ) : k === 'serieId' ? (
-            <select value={campos[k] ?? ''} onChange={(e) => set(k, e.target.value)}>
-              <option value="">— seleccione —</option>
-              {(series.data ?? []).map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.codigo} · {s.nombre}
                 </option>
               ))}
             </select>

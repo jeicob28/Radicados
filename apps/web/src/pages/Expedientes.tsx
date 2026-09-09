@@ -4,6 +4,12 @@ import { api } from '../api';
 import { useAuth } from '../auth';
 import { Boton, Card, ErrorMsg, Field, Modal, fechaCorta, useAsync } from '../ui';
 import CapturaCamara from '../components/CapturaCamara';
+import {
+  SelectorSerieSubserie,
+  codigoClasificacion,
+  useCuadroClasificacion,
+  validarClasificacion,
+} from '../components/Clasificacion';
 
 interface ExpLista {
   numero: string;
@@ -90,64 +96,72 @@ export function ExpedientesLista() {
 }
 
 function NuevoExpediente({ onClose, onDone }: { onClose: () => void; onDone: (n: string) => void }) {
-  const series = useAsync<{ id: string; codigo: string; nombre: string; dependenciaId: string }[]>(
-    () => api('/series'),
-    [],
-  );
+  const cuadro = useCuadroClasificacion();
   const [titulo, setTitulo] = useState('');
   const [serieId, setSerieId] = useState('');
+  const [subserieId, setSubserieId] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+
+  const serie = cuadro.data?.find((s) => s.id === serieId) ?? null;
+  const subserie = serie?.subseries.find((ss) => ss.id === subserieId) ?? null;
 
   const crear = async () => {
     setError(null);
-    const serie = series.data?.find((s) => s.id === serieId);
-    if (!serie) return setError('Seleccione una serie');
+    const problema = validarClasificacion(serie, subserie);
+    if (problema) return setError(problema);
+    if (titulo.trim().length < 4) return setError('El título del expediente debe tener al menos 4 caracteres.');
+    setEnviando(true);
     try {
       const r = await api<{ numero: string }>('/expedientes', {
         method: 'POST',
-        body: JSON.stringify({ titulo, serieId, dependenciaId: serie.dependenciaId }),
+        body: JSON.stringify({
+          titulo: titulo.trim(),
+          serieId,
+          subserieId: subserieId || undefined,
+          dependenciaId: serie!.dependenciaId,
+        }),
       });
       onDone(r.numero);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setEnviando(false);
     }
   };
 
   return (
-    <div className="modal-bg" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <header>
-          <h3>Nuevo expediente</h3>
-          <button className="x" onClick={onClose}>
-            ×
-          </button>
-        </header>
-        <div className="modal-body">
-          <label className="field">
-            <span>Título</span>
-            <input value={titulo} onChange={(e) => setTitulo(e.target.value)} />
-          </label>
-          <label className="field">
-            <span>Serie</span>
-            <select value={serieId} onChange={(e) => setSerieId(e.target.value)}>
-              <option value="">— seleccione —</option>
-              {(series.data ?? []).map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.codigo} · {s.nombre}
-                </option>
-              ))}
-            </select>
-          </label>
-          {error && <ErrorMsg>{error}</ErrorMsg>}
-          <div className="modal-acciones">
-            <Boton variante="ghost" onClick={onClose}>
-              Cancelar
-            </Boton>
-            <Boton onClick={crear}>Crear</Boton>
-          </div>
-        </div>
+    <Modal title="Nuevo expediente" onClose={onClose}>
+      <SelectorSerieSubserie
+        cuadro={cuadro.data}
+        cargando={cuadro.cargando}
+        serieId={serieId}
+        subserieId={subserieId}
+        onSerie={setSerieId}
+        onSubserie={setSubserieId}
+      />
+      <Field
+        label="Título del expediente"
+        hint={
+          serie
+            ? `Se abrirá como ${codigoClasificacion(serie, subserie)} — ${
+                subserie ? subserie.nombre : serie.nombre
+              }`
+            : undefined
+        }
+      >
+        <input value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Asunto o nombre del expediente" />
+      </Field>
+      {error && <ErrorMsg>{error}</ErrorMsg>}
+      <div className="modal-acciones">
+        <Boton variante="ghost" onClick={onClose}>
+          Cancelar
+        </Boton>
+        <Boton onClick={crear} disabled={enviando}>
+          {enviando ? '…' : 'Crear'}
+        </Boton>
       </div>
-    </div>
+    </Modal>
   );
 }
 
