@@ -23,6 +23,7 @@ import Reportes from './pages/Reportes';
 import Informes from './pages/Informes';
 import Ayuda from './pages/Ayuda';
 import MarcoLegal from './pages/MarcoLegal';
+import Seguridad from './pages/Seguridad';
 import Usuarios from './pages/admin/Usuarios';
 import Roles from './pages/admin/Roles';
 import Dependencias from './pages/admin/Dependencias';
@@ -39,19 +40,25 @@ const NAV = [
   { to: '/informes', label: 'Informes', icon: '▨', roles: ['JEFE', 'RADICADOR', 'AUDITOR', 'ARCHIVISTA'] },
   { to: '/reportes', label: 'Reportes', icon: '▧', roles: ['JEFE', 'RADICADOR', 'AUDITOR', 'ARCHIVISTA'] },
   { to: '/bitacora', label: 'Auditoría', icon: '⛨', roles: ['AUDITOR'] },
+  { to: '/seguridad', label: 'Seguridad de la información', icon: '⬢', roles: ['ADMIN', 'DEV', 'AUDITOR'] },
   { to: '/ayuda', label: 'Ayuda', icon: '?', roles: [] },
   { to: '/marco-legal', label: 'Marco legal', icon: '§', roles: [] },
 ];
 
+// Administración funcional — rol ADMIN.
 const NAV_ADMIN = [
   { to: '/admin/usuarios', label: 'Usuarios', icon: '◍' },
   { to: '/admin/roles', label: 'Roles', icon: '◈' },
   { to: '/admin/dependencias', label: 'Dependencias', icon: '◫' },
+];
+
+// Soporte técnico / superusuario — rol DEV.
+const NAV_DEV = [
   { to: '/admin/copias', label: 'Copias de seguridad', icon: '⛁' },
 ];
 
 function Layout({ children }: { children: React.ReactNode }) {
-  const { usuario, logout, tieneRol } = useAuth();
+  const { usuario, logout, tieneRol, esDev } = useAuth();
   const [noLeidas, setNoLeidas] = useState(0);
   const loc = useLocation();
 
@@ -89,6 +96,17 @@ function Layout({ children }: { children: React.ReactNode }) {
               ))}
             </>
           )}
+          {esDev && (
+            <>
+              <div className="nav-sep">Técnico</div>
+              {NAV_DEV.map((n) => (
+                <NavLink key={n.to} to={n.to}>
+                  <span className="ico">{n.icon}</span>
+                  {n.label}
+                </NavLink>
+              ))}
+            </>
+          )}
         </nav>
         <div className="user">
           <strong>{usuario?.nombre}</strong>
@@ -116,6 +134,18 @@ function SoloAdmin({ children }: { children: React.ReactNode }) {
 function SoloVentanilla({ children }: { children: React.ReactNode }) {
   const { tieneRol } = useAuth();
   if (!tieneRol('VENTANILLA')) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
+function SoloDev({ children }: { children: React.ReactNode }) {
+  const { esDev } = useAuth();
+  if (!esDev) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
+function SoloRoles({ roles, children }: { roles: string[]; children: React.ReactNode }) {
+  const { tieneRol } = useAuth();
+  if (!tieneRol(...roles)) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
@@ -157,7 +187,8 @@ function Privado() {
   if (cargando) return <div className="loading">Cargando…</div>;
   if (!usuario) return <Navigate to="/login" replace />;
   if (usuario.debeCambiarPassword) return <CambiarPasswordForzado />;
-  if (mant.activo && !usuario.roles.includes('ADMIN')) return <PantallaMantenimiento motivo={mant.motivo} />;
+  if (mant.activo && !usuario.roles.includes('ADMIN') && !usuario.roles.includes('DEV'))
+    return <PantallaMantenimiento motivo={mant.motivo} />;
   return (
     <Layout>
       <Routes>
@@ -173,10 +204,11 @@ function Privado() {
         <Route path="/bitacora" element={<Bitacora />} />
         <Route path="/ayuda" element={<Ayuda />} />
         <Route path="/marco-legal" element={<MarcoLegal />} />
+        <Route path="/seguridad" element={<SoloRoles roles={['ADMIN', 'DEV', 'AUDITOR']}><Seguridad /></SoloRoles>} />
         <Route path="/admin/usuarios" element={<SoloAdmin><Usuarios /></SoloAdmin>} />
         <Route path="/admin/roles" element={<SoloAdmin><Roles /></SoloAdmin>} />
         <Route path="/admin/dependencias" element={<SoloAdmin><Dependencias /></SoloAdmin>} />
-        <Route path="/admin/copias" element={<SoloAdmin><Copias /></SoloAdmin>} />
+        <Route path="/admin/copias" element={<SoloDev><Copias /></SoloDev>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

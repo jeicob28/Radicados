@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -55,6 +56,19 @@ export class UsuariosService {
     return u;
   }
 
+  /**
+   * Separación de funciones: el rol DEV (soporte técnico / superusuario) solo lo
+   * puede otorgar quien ya es DEV. `rolesAntes` evita bloquear a un ADMIN que
+   * edita otros campos de un usuario que ya tenía DEV.
+   */
+  private verificarOtorgamientoDev(ctx: AuditCtx, rolesNuevos?: string[], rolesAntes: string[] = []) {
+    if (!rolesNuevos) return;
+    const otorgaDev = rolesNuevos.includes('DEV') && !rolesAntes.includes('DEV');
+    if (otorgaDev && !(ctx.usuario?.roles ?? []).includes('DEV')) {
+      throw new ForbiddenException('Solo un usuario con rol DEV puede otorgar el rol DEV');
+    }
+  }
+
   private async validarRoles(roles: string[]) {
     const existentes = await this.prisma.rol.findMany({
       where: { codigo: { in: roles } },
@@ -76,6 +90,7 @@ export class UsuariosService {
 
   async crear(dto: CrearUsuarioDto, ctx: AuditCtx) {
     await this.validarRoles(dto.roles);
+    this.verificarOtorgamientoDev(ctx, dto.roles);
     if (dto.dependenciaId) {
       const dep = await this.prisma.dependencia.findUnique({ where: { id: dto.dependenciaId } });
       if (!dep) throw new BadRequestException('Dependencia inexistente');
@@ -119,6 +134,7 @@ export class UsuariosService {
   async actualizar(id: string, dto: ActualizarUsuarioDto, ctx: AuditCtx) {
     const antes = await this.obtener(id);
     if (dto.roles) await this.validarRoles(dto.roles);
+    this.verificarOtorgamientoDev(ctx, dto.roles, antes.roles);
     if (dto.dependenciaId) {
       const dep = await this.prisma.dependencia.findUnique({ where: { id: dto.dependenciaId } });
       if (!dep) throw new BadRequestException('Dependencia inexistente');

@@ -24,7 +24,7 @@ export class RolesGuard implements CanActivate {
     if (!user) throw new UnauthorizedException();
 
     const roles: string[] = user.roles ?? [];
-    if (roles.includes(ROLES.ADMIN)) return true;
+    if (roles.includes(ROLES.ADMIN) || roles.includes(ROLES.DEV)) return true;
     if (required.some((r) => roles.includes(r))) return true;
 
     throw new ForbiddenException(

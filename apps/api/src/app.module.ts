@@ -29,6 +29,7 @@ import { DisposicionModule } from './ciclo-vida/disposicion.module';
 import { InternalModule } from './internal/internal.module';
 import { CopiasModule } from './copias/copias.module';
 import { AyudaModule } from './ayuda/ayuda.module';
+import { SgsiModule } from './sgsi/sgsi.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
 import { MantenimientoGuard } from './common/mantenimiento.guard';
@@ -64,6 +65,7 @@ import { BitacoraInterceptor } from './common/interceptors/bitacora.interceptor'
     InternalModule,
     CopiasModule,
     AyudaModule,
+    SgsiModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

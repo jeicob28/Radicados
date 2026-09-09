@@ -158,10 +158,11 @@ export default function RadicadoDetalle() {
   // salvo AUDITOR, sobre los radicados asignados a la persona o a su
   // dependencia. Ver Requerimientos §21.2. El backend lo verifica también.
   const roles = usuario?.roles ?? [];
-  const esAuditorPuro = roles.includes('AUDITOR') && !roles.includes('ADMIN');
+  const esSuper = roles.includes('ADMIN') || roles.includes('DEV');
+  const esAuditorPuro = roles.includes('AUDITOR') && !esSuper;
   const puedoTramitar =
     !esAuditorPuro &&
-    (roles.includes('ADMIN') ||
+    (esSuper ||
       (!!r.funcionario?.id && r.funcionario.id === usuario?.id) ||
       (!!usuario?.dependenciaId && usuario.dependenciaId === r.dependenciaId));
 

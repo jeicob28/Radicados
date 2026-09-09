@@ -303,3 +303,38 @@ main > .pie { margin-top: 40px; }
 .trd-resumen > div { display: flex; gap: 8px; justify-content: space-between; align-items: baseline; }
 .trd-resumen .trd-k { color: var(--muted); white-space: nowrap; }
 .radio-inline { display: inline-flex; align-items: center; gap: 6px; font-size: 0.88rem; cursor: pointer; }
+
+/* ---------- SGSI / seguridad de la información ---------- */
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0 16px; border-bottom: 1px solid var(--border); }
+.tab { background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 12px; font: inherit; color: var(--muted); cursor: pointer; }
+.tab.on { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+
+.mapa-calor { display: grid; grid-template-columns: auto 1fr; grid-template-areas: "y grid" ". x" "ley ley"; gap: 4px 8px; align-items: center; max-width: 360px; }
+.mapa-calor > table { grid-area: grid; border-collapse: collapse; width: 100%; }
+.mapa-calor th { font-size: 0.72rem; color: var(--muted); padding: 2px 4px; font-weight: 500; }
+.mapa-calor td { padding: 2px; }
+.mc-ejeY { grid-area: y; writing-mode: vertical-rl; transform: rotate(180deg); font-size: 0.72rem; color: var(--muted); }
+.mc-ejeX { grid-area: x; text-align: center; font-size: 0.72rem; color: var(--muted); }
+.mc-xlab { text-align: center; font-size: 0.72rem; color: var(--muted); }
+.mc-celda { width: 100%; aspect-ratio: 1; min-width: 34px; border: 0; border-radius: 4px; color: #fff; font-weight: 600; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; cursor: default; }
+button.mc-celda { cursor: pointer; }
+.mc-celda.mc-vacia { opacity: 0.35; }
+.mc-leyenda { grid-area: ley; list-style: none; display: flex; flex-wrap: wrap; gap: 10px; padding: 8px 0 0; margin: 0; font-size: 0.76rem; color: var(--muted); }
+.mc-leyenda li { display: flex; align-items: center; gap: 5px; }
+.mc-pt { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+
+.rz-bajo { background: #3f8f6f; }
+.rz-medio { background: #9c6b12; }
+.rz-alto { background: #c2410c; }
+.rz-extremo { background: #b23a2e; }
+
+.cid-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.cid-grid input:disabled { background: var(--surface-2); color: var(--muted); }
+.ctrl-picker { max-height: 220px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+.ctrl-picker .radio-inline { font-size: 0.82rem; align-items: flex-start; }
+.celda-sm { font-size: 0.82rem; color: var(--muted); max-width: 320px; }
+.barra-avance { display: inline-block; width: 90px; height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden; vertical-align: middle; }
+.barra-avance > span { display: block; height: 100%; background: var(--accent); }
+.doc h3 { margin: 16px 0 4px; font-size: 1rem; }
+.doc p, .doc ul { margin: 0 0 6px; line-height: 1.5; }
+.doc ul { padding-left: 20px; }

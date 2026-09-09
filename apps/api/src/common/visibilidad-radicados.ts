@@ -14,6 +14,7 @@ import { ROLES } from '../auth/roles';
  */
 export const ROLES_VISIBILIDAD_TOTAL: string[] = [
   ROLES.ADMIN,
+  ROLES.DEV,
   ROLES.VENTANILLA,
   ROLES.ARCHIVISTA,
   ROLES.AUDITOR,
@@ -50,7 +51,7 @@ export function puedeTramitar(
   radicado: { dependenciaId: string | null; funcionarioId: string | null },
 ): boolean {
   const roles = usuario?.roles ?? [];
-  if (roles.includes(ROLES.ADMIN)) return true;
+  if (roles.includes(ROLES.ADMIN) || roles.includes(ROLES.DEV)) return true;
   if (roles.includes(ROLES.AUDITOR)) return false;
   if (!usuario) return false;
   if (radicado.funcionarioId && radicado.funcionarioId === usuario.id) return true;

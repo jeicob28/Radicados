@@ -1,10 +1,17 @@
 /**
  * Catálogo base de roles del SGDEA (RBAC). Se siembra en la tabla `rol` y puede
  * ampliarse desde /api/v1/roles. Los guards evalúan el código del rol; `ADMIN`
- * es un superrol que satisface cualquier requisito.
+ * y `DEV` son superroles que satisfacen cualquier requisito.
+ *
+ * Separación de funciones: `ADMIN` es la administración funcional (usuarios,
+ * roles, dependencias, metas de indicadores, disposición documental); `DEV` es
+ * el soporte técnico (marca, copias de seguridad, parámetros del sistema,
+ * mantenimiento y la infraestructura del SGSI). Solo un usuario `DEV` puede
+ * otorgar el rol `DEV`.
  */
 export const ROLES = {
   ADMIN: 'ADMIN',
+  DEV: 'DEV',
   RADICADOR: 'RADICADOR',
   VENTANILLA: 'VENTANILLA',
   FUNCIONARIO: 'FUNCIONARIO',
@@ -24,7 +31,13 @@ export const CATALOGO_ROLES: Array<{
   {
     codigo: ROLES.ADMIN,
     nombre: 'Administrador',
-    descripcion: 'Configuración del sistema, usuarios, roles y parámetros.',
+    descripcion: 'Administración funcional: usuarios, roles, dependencias, metas de indicadores y disposición documental.',
+    permisos: ['*'],
+  },
+  {
+    codigo: ROLES.DEV,
+    nombre: 'Soporte técnico',
+    descripcion: 'Soporte técnico y superusuario: marca, copias de seguridad, parámetros del sistema, mantenimiento e infraestructura del SGSI. Solo un DEV puede otorgar el rol DEV.',
     permisos: ['*'],
   },
   {

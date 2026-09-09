@@ -19,7 +19,8 @@ export class MantenimientoGuard implements CanActivate {
     const req = ctx.switchToHttp().getRequest();
     const user = req.user;
     if (!user) return true;
-    if ((user.roles ?? []).includes(ROLES.ADMIN)) return true;
+    const roles = user.roles ?? [];
+    if (roles.includes(ROLES.ADMIN) || roles.includes(ROLES.DEV)) return true;
     // deja pasar identidad/sesión para que la SPA pueda mostrar el aviso
     const ruta: string = req.path ?? req.url ?? '';
     if (ruta.startsWith('/api/v1/auth') || ruta.startsWith('/api/v1/health')) return true;

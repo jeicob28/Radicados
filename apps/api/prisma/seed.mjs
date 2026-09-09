@@ -8,7 +8,8 @@ const prisma = new PrismaClient();
 
 // Rol del sistema (no editable en permisos) — coincide con CATALOGO_ROLES de la API.
 const CATALOGO_ROLES = [
-  ['ADMIN', 'Administrador', 'Configuración del sistema, usuarios, roles y parámetros.', ['*']],
+  ['ADMIN', 'Administrador', 'Administración funcional: usuarios, roles, dependencias, metas de indicadores y disposición documental.', ['*']],
+  ['DEV', 'Soporte técnico', 'Soporte técnico y superusuario: copias de seguridad, parámetros del sistema, mantenimiento e infraestructura del SGSI. Solo un DEV puede otorgar el rol DEV.', ['*']],
   ['RADICADOR', 'Coordinador de correspondencia', 'Configura el consecutivo y el rango de contingencia; anula radicados con justificación.', ['radicado:anular', 'consecutivo:configurar']],
   ['VENTANILLA', 'Ventanilla única', 'Recepción, digitalización y registro de terceros; único rol que radica (entrada y salida) — centraliza la radicación de toda la empresa.', ['recepcion:crear', 'radicado:crear', 'tercero:crear']],
   ['FUNCIONARIO', 'Funcionario', 'Tramita los radicados de su dependencia y prepara las respuestas; Ventanilla es quien las radica y despacha.', ['radicado:tramitar', 'radicado:responder']],
@@ -124,12 +125,12 @@ async function main() {
   });
   await prisma.usuario.upsert({
     where: { email: 'admin@empresa.local' },
-    update: { roles: ['ADMIN', 'RADICADOR', 'AUDITOR'] },
+    update: { roles: ['ADMIN', 'DEV', 'RADICADOR', 'AUDITOR'] },
     create: {
       documento: '00000000',
       nombre: 'Administrador del Sistema',
       email: 'admin@empresa.local',
-      roles: ['ADMIN', 'RADICADOR', 'AUDITOR'],
+      roles: ['ADMIN', 'DEV', 'RADICADOR', 'AUDITOR'],
       dependenciaId: arc?.id ?? null,
       passwordHash,
       debeCambiarPassword: true,

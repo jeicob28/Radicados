@@ -435,7 +435,7 @@ export class CopiasService {
 @ApiTags('copias de seguridad')
 @ApiBearerAuth()
 @Controller('copias')
-@Roles(ROLES.ADMIN)
+@Roles(ROLES.DEV)
 export class CopiasController {
   constructor(private readonly copias: CopiasService) {}
 

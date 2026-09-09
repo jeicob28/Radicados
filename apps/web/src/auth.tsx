@@ -7,7 +7,10 @@ interface AuthCtx {
   login: (email: string, password: string, codigo?: string) => Promise<void>;
   logout: () => Promise<void>;
   refrescarPerfil: () => Promise<void>;
+  /** ADMIN y DEV son superroles: satisfacen cualquier requisito de rol. */
   tieneRol: (...roles: string[]) => boolean;
+  /** Soporte técnico / superusuario (marca, copias, parámetros, SGSI técnico). */
+  esDev: boolean;
 }
 
 const Ctx = createContext<AuthCtx>(null as never);
@@ -44,10 +47,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const tieneRol = (...roles: string[]) =>
-    !!usuario && (usuario.roles.includes('ADMIN') || roles.some((r) => usuario.roles.includes(r)));
+    !!usuario &&
+    (usuario.roles.includes('ADMIN') ||
+      usuario.roles.includes('DEV') ||
+      roles.some((r) => usuario.roles.includes(r)));
+
+  const esDev = usuario?.roles.includes('DEV') ?? false;
 
   return (
-    <Ctx.Provider value={{ usuario, cargando, login, logout, refrescarPerfil, tieneRol }}>
+    <Ctx.Provider value={{ usuario, cargando, login, logout, refrescarPerfil, tieneRol, esDev }}>
       {children}
     </Ctx.Provider>
   );

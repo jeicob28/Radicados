@@ -652,3 +652,153 @@ model Bitacora {
   @@index([fechaHora])
   @@map("bitacora")
 }
+
+// ─────────────────────────── SGSI — seguridad de la información (ISO/IEC 27001:2022) ───────────────────────────
+
+enum ClaseActivo {
+  INFORMACION
+  SOFTWARE
+  HARDWARE
+  SERVICIO
+  INFRAESTRUCTURA
+  PERSONAL
+  INSTALACION
+}
+
+enum EstadoRiesgo {
+  IDENTIFICADO
+  EN_TRATAMIENTO
+  MITIGADO
+  ACEPTADO
+  CERRADO
+}
+
+enum OpcionTratamiento {
+  MITIGAR
+  TRANSFERIR
+  EVITAR
+  ACEPTAR
+}
+
+enum EstadoControl {
+  NO_APLICA
+  NO_IMPLEMENTADO
+  PLANIFICADO
+  EN_IMPLEMENTACION
+  IMPLEMENTADO
+}
+
+enum EstadoPlan {
+  ABIERTO
+  EN_CURSO
+  IMPLEMENTADO
+  VERIFICADO
+  CERRADO
+}
+
+enum TemaAnexoA {
+  ORGANIZACIONAL
+  PERSONAS
+  FISICO
+  TECNOLOGICO
+}
+
+model ActivoInformacion {
+  id               String      @id @default(uuid())
+  codigo           String      @unique
+  nombre           String
+  descripcion      String?
+  clase            ClaseActivo
+  propietario      String?
+  custodio         String?
+  dependenciaId    String?     @map("dependencia_id")
+  ubicacion        String?
+  esInfraestructura Boolean    @default(false) @map("es_infraestructura")
+  confidencialidad Int         @default(3)
+  integridad       Int         @default(3)
+  disponibilidad   Int         @default(3)
+  valoracion       Int         @default(3)
+  activo           Boolean     @default(true)
+  creado           DateTime    @default(now())
+  actualizado      DateTime    @default(now()) @updatedAt
+
+  riesgos Riesgo[]
+
+  @@index([clase])
+  @@map("activo_informacion")
+}
+
+model Riesgo {
+  id                    String            @id @default(uuid())
+  codigo                String            @unique
+  activoId              String            @map("activo_id")
+  activo                ActivoInformacion @relation(fields: [activoId], references: [id], onDelete: Cascade)
+  nombre                String
+  descripcion           String?
+  amenaza               String
+  vulnerabilidad        String
+  probabilidad          Int
+  impacto               Int
+  nivelInherente        Int               @map("nivel_inherente")
+  opcionTratamiento     OpcionTratamiento @default(MITIGAR) @map("opcion_tratamiento")
+  probabilidadResidual  Int?              @map("probabilidad_residual")
+  impactoResidual       Int?              @map("impacto_residual")
+  nivelResidual         Int?              @map("nivel_residual")
+  estado                EstadoRiesgo      @default(IDENTIFICADO)
+  responsableId         String?           @map("responsable_id")
+  fechaRevision         DateTime?         @map("fecha_revision")
+  creado                DateTime          @default(now())
+  actualizado           DateTime          @default(now()) @updatedAt
+
+  controles ControlAnexoA[]  @relation("RiesgoControles")
+  planes    PlanTratamiento[]
+
+  @@index([estado])
+  @@map("riesgo")
+}
+
+model ControlAnexoA {
+  id          String     @id @default(uuid())
+  codigo      String     @unique
+  tema        TemaAnexoA
+  titulo      String
+  descripcion String?
+
+  aplicabilidad DeclaracionAplicabilidad?
+  riesgos       Riesgo[]                  @relation("RiesgoControles")
+
+  @@map("control_anexo_a")
+}
+
+model DeclaracionAplicabilidad {
+  id                  String        @id @default(uuid())
+  controlId           String        @unique @map("control_id")
+  control             ControlAnexoA @relation(fields: [controlId], references: [id], onDelete: Cascade)
+  aplica              Boolean       @default(true)
+  justificacion       String?
+  estado              EstadoControl @default(NO_IMPLEMENTADO)
+  responsableId       String?       @map("responsable_id")
+  observaciones       String?
+  fechaImplementacion DateTime?     @map("fecha_implementacion")
+  actualizado         DateTime      @default(now()) @updatedAt
+
+  @@map("declaracion_aplicabilidad")
+}
+
+model PlanTratamiento {
+  id            String     @id @default(uuid())
+  riesgoId      String     @map("riesgo_id")
+  riesgo        Riesgo     @relation(fields: [riesgoId], references: [id], onDelete: Cascade)
+  descripcion   String
+  accion        String?
+  responsableId String?    @map("responsable_id")
+  fechaObjetivo DateTime?  @map("fecha_objetivo")
+  estado        EstadoPlan @default(ABIERTO)
+  avance        Int        @default(0)
+  fechaCierre   DateTime?  @map("fecha_cierre")
+  creado        DateTime   @default(now())
+  actualizado   DateTime   @default(now()) @updatedAt
+
+  @@index([riesgoId])
+  @@map("plan_tratamiento")
+}

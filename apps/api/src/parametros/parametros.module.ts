@@ -77,7 +77,7 @@ class ParametrosController {
   }
 
   @Put(':clave')
-  @Roles(ROLES.ADMIN)
+  @Roles(ROLES.DEV)
   guardar(
     @Param('clave') clave: string,
     @Body() dto: GuardarParametroDto,
