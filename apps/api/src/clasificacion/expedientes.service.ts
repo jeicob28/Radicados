@@ -86,7 +86,8 @@ export class ExpedientesService {
       orderBy: { creado: 'desc' },
       include: {
         serie: { select: { codigo: true, nombre: true } },
-        dependencia: { select: { codigo: true } },
+        subserie: { select: { codigo: true, nombre: true } },
+        dependencia: { select: { codigo: true, nombre: true } },
         _count: { select: { documentos: true, radicados: true } },
       },
       take: 200,

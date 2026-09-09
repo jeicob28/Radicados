@@ -270,3 +270,26 @@ main > .pie { margin-top: 40px; }
   max-width: 420px;
 }
 .pie.pie-compacto .pie-frase { margin-left: auto; margin-right: auto; }
+
+/* ---------- informes / gráficas ---------- */
+.g-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.g-barras { display: flex; flex-direction: column; gap: 6px; }
+.g-fila {
+  display: grid; grid-template-columns: 150px 1fr 44px; align-items: center; gap: 10px;
+  background: none; border: 0; padding: 3px 0; font: inherit; color: var(--text); text-align: left; width: 100%;
+}
+.g-clic { cursor: pointer; border-radius: 6px; }
+.g-clic:hover { background: var(--surface-2); }
+.g-etq { font-size: 0.8rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.g-track { background: var(--surface-2); border-radius: 5px; height: 16px; overflow: hidden; }
+.g-bar { display: block; height: 100%; border-radius: 5px; min-width: 2px; transition: width .3s; }
+.g-val { font-size: 0.82rem; text-align: right; font-variant-numeric: tabular-nums; }
+.g-dona { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.g-leyenda { list-style: none; margin: 0; padding: 0; font-size: 0.82rem; display: flex; flex-direction: column; gap: 4px; }
+.g-leyenda li { display: flex; align-items: center; gap: 7px; }
+.g-punto { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.kpi-meta { font-size: 0.72rem; margin-top: 2px; }
+.kpi-meta.ok { color: var(--ok); }
+.kpi-meta.mal { color: var(--crit); }
+.g-migas { display: flex; gap: 6px; align-items: center; font-size: 0.85rem; margin-bottom: 12px; flex-wrap: wrap; }
+.g-migas button { background: none; border: 0; color: var(--accent); cursor: pointer; font: inherit; padding: 0; }

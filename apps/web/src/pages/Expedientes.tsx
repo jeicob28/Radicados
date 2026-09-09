@@ -10,7 +10,17 @@ interface ExpLista {
   titulo: string;
   estado: string;
   serie: { codigo: string; nombre: string };
+  subserie: { codigo: string; nombre: string } | null;
+  dependencia?: { codigo: string; nombre: string };
   _count: { documentos: number; radicados: number };
+}
+
+/** Código de clasificación archivística: serie(.subserie). */
+function clasifCodigo(e: ExpLista) {
+  return e.subserie ? `${e.serie.codigo}.${e.subserie.codigo}` : e.serie.codigo;
+}
+function clasifNombre(e: ExpLista) {
+  return e.subserie ? `${e.serie.nombre} / ${e.subserie.nombre}` : e.serie.nombre;
 }
 
 export function ExpedientesLista() {
@@ -36,9 +46,8 @@ export function ExpedientesLista() {
           <table>
             <thead>
               <tr>
-                <th>Número</th>
-                <th>Título</th>
-                <th>Serie</th>
+                <th>Clasificación (serie · subserie)</th>
+                <th>Expediente</th>
                 <th>Estado</th>
                 <th>Documentos</th>
               </tr>
@@ -47,12 +56,17 @@ export function ExpedientesLista() {
               {(data ?? []).map((e) => (
                 <tr key={e.numero}>
                   <td>
+                    <span className="mono">{clasifCodigo(e)}</span>
+                    <div className="vacio" style={{ padding: 0, textAlign: 'left' }}>{clasifNombre(e)}</div>
+                  </td>
+                  <td>
                     <Link to={`/expedientes/${e.numero}`} className="rad">
                       {e.numero}
                     </Link>
+                    {e.titulo && (
+                      <div className="vacio" style={{ padding: 0, textAlign: 'left' }}>{e.titulo}</div>
+                    )}
                   </td>
-                  <td>{e.titulo}</td>
-                  <td>{e.serie.codigo}</td>
                   <td>
                     <span className="pill muted">{e.estado.replace(/_/g, ' ')}</span>
                   </td>
@@ -61,7 +75,7 @@ export function ExpedientesLista() {
               ))}
               {data && data.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="vacio">
+                  <td colSpan={4} className="vacio">
                     Sin expedientes.
                   </td>
                 </tr>

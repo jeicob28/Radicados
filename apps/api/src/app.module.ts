@@ -21,6 +21,7 @@ import { SeguimientoModule } from './seguimiento/seguimiento.module';
 import { NotificacionesModule } from './notificaciones/notificaciones.module';
 import { ClasificacionModule } from './clasificacion/clasificacion.module';
 import { ReportesModule } from './reportes/reportes.module';
+import { InformesModule } from './informes/informes.module';
 import { CorreoModule } from './correo/correo.module';
 import { ContingenciaModule } from './contingencia/contingencia.module';
 import { TransferenciasModule } from './ciclo-vida/transferencias.module';
@@ -55,6 +56,7 @@ import { BitacoraInterceptor } from './common/interceptors/bitacora.interceptor'
     NotificacionesModule,
     ClasificacionModule,
     ReportesModule,
+    InformesModule,
     CorreoModule,
     ContingenciaModule,
     TransferenciasModule,

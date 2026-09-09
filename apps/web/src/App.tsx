@@ -20,6 +20,7 @@ import Bandeja from './pages/Bandeja';
 import { ExpedienteDetalle, ExpedientesLista } from './pages/Expedientes';
 import Bitacora from './pages/Bitacora';
 import Reportes from './pages/Reportes';
+import Informes from './pages/Informes';
 import Ayuda from './pages/Ayuda';
 import MarcoLegal from './pages/MarcoLegal';
 import Usuarios from './pages/admin/Usuarios';
@@ -35,6 +36,7 @@ const NAV = [
   { to: '/consulta', label: 'Consulta', icon: '⌕', roles: [] },
   { to: '/bandeja', label: 'Mi bandeja', icon: '☰', roles: ['FUNCIONARIO', 'JEFE'] },
   { to: '/expedientes', label: 'Expedientes', icon: '▦', roles: [] },
+  { to: '/informes', label: 'Informes', icon: '▨', roles: ['JEFE', 'RADICADOR', 'AUDITOR', 'ARCHIVISTA'] },
   { to: '/reportes', label: 'Reportes', icon: '▧', roles: ['JEFE', 'RADICADOR', 'AUDITOR', 'ARCHIVISTA'] },
   { to: '/bitacora', label: 'Auditoría', icon: '⛨', roles: ['AUDITOR'] },
   { to: '/ayuda', label: 'Ayuda', icon: '?', roles: [] },
@@ -166,6 +168,7 @@ function Privado() {
         <Route path="/bandeja" element={<Bandeja />} />
         <Route path="/expedientes" element={<ExpedientesLista />} />
         <Route path="/expedientes/:numero" element={<ExpedienteDetalle />} />
+        <Route path="/informes" element={<Informes />} />
         <Route path="/reportes" element={<Reportes />} />
         <Route path="/bitacora" element={<Bitacora />} />
         <Route path="/ayuda" element={<Ayuda />} />
